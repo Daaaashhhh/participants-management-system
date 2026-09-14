@@ -1,7 +1,7 @@
 'use client';
 
 import * as React from 'react';
-import { Download, FileSpreadsheet, FileText, ChevronDown, Check } from 'lucide-react';
+import { Download, FileSpreadsheet, FileText, ChevronDown } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { exportFinalTallyToExcel, exportParticipantsToCsv } from '@/lib/export/excel';
 import { ParticipantWithRelations, PartnerAgency, CBOWithAgency } from '@/types/database';

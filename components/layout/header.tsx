@@ -2,8 +2,7 @@
 
 import * as React from 'react';
 import { usePathname } from 'next/navigation';
-import { Database, ShieldCheck } from 'lucide-react';
-import { Badge } from '@/components/ui/badge';
+import { ConnectionStatusBadge } from './connection-status-badge';
 
 const pageTitles: Record<string, { title: string; subtitle: string }> = {
   '/dashboard': {
@@ -27,8 +26,6 @@ const pageTitles: Record<string, { title: string; subtitle: string }> = {
     subtitle: 'Visual tree of Agencies, CBOs, and enrolled participants sorted alphabetically',
   },
 };
-
-import { ConnectionStatusBadge } from './connection-status-badge';
 
 export function Header() {
   const pathname = usePathname();
