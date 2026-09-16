@@ -21,6 +21,10 @@ const pageTitles: Record<string, { title: string; subtitle: string }> = {
     title: 'Participant Directory',
     subtitle: 'Manage participants, track confirmation dates, and update statuses',
   },
+  '/attendance': {
+    title: 'Event Attendance Sheet',
+    subtitle: 'Record attendee check-ins, time logs (AM/PM), and export attendance reports',
+  },
   '/organized-list': {
     title: 'Organized Hierarchical View',
     subtitle: 'Visual tree of Agencies, CBOs, and enrolled participants sorted alphabetically',

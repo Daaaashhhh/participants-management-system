@@ -26,6 +26,25 @@ export type Participant = {
   updated_at: string;
 };
 
+export type AttendanceRecord = {
+  id: string;
+  event_date: string;
+  participant_id: string | null;
+  name: string;
+  office_agency: string;
+  position: string | null;
+  sex: 'M' | 'F' | null;
+  email: string | null;
+  contact_no: string | null;
+  remarks: string | null;
+  am_in: string | null;
+  am_out: string | null;
+  pm_in: string | null;
+  pm_out: string | null;
+  created_at: string;
+  updated_at: string;
+};
+
 // Joined views & relationships
 export type CBOWithAgency = CBO & {
   partner_agency?: {
@@ -161,6 +180,54 @@ export type Database = {
             isOneToOne: false;
             referencedRelation: "cbos";
             referencedColumns: ["id", "partner_agency_id"];
+          }
+        ];
+      };
+      attendance_records: {
+        Row: AttendanceRecord;
+        Insert: {
+          id?: string;
+          event_date?: string;
+          participant_id?: string | null;
+          name: string;
+          office_agency: string;
+          position?: string | null;
+          sex?: 'M' | 'F' | null;
+          email?: string | null;
+          contact_no?: string | null;
+          remarks?: string | null;
+          am_in?: string | null;
+          am_out?: string | null;
+          pm_in?: string | null;
+          pm_out?: string | null;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Update: {
+          id?: string;
+          event_date?: string;
+          participant_id?: string | null;
+          name?: string;
+          office_agency?: string;
+          position?: string | null;
+          sex?: 'M' | 'F' | null;
+          email?: string | null;
+          contact_no?: string | null;
+          remarks?: string | null;
+          am_in?: string | null;
+          am_out?: string | null;
+          pm_in?: string | null;
+          pm_out?: string | null;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "attendance_records_participant_id_fkey";
+            columns: ["participant_id"];
+            isOneToOne: false;
+            referencedRelation: "participants";
+            referencedColumns: ["id"];
           }
         ];
       };

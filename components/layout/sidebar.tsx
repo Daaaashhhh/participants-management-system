@@ -15,6 +15,7 @@ import {
   Sparkles,
   ExternalLink,
   Globe,
+  ClipboardCheck,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
@@ -23,6 +24,7 @@ const navigation = [
   { name: 'Partner Agencies', href: '/agencies', icon: Building2 },
   { name: 'CBOs', href: '/cbos', icon: Users2 },
   { name: 'Participants', href: '/participants', icon: UserCheck },
+  { name: 'Attendance Sheet', href: '/attendance', icon: ClipboardCheck },
   { name: 'Organized List', href: '/organized-list', icon: ListTree },
 ];
 

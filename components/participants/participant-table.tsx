@@ -1,6 +1,7 @@
 'use client';
 
 import * as React from 'react';
+import Link from 'next/link';
 import {
   CBOWithAgency,
   PartnerAgency,
@@ -13,6 +14,7 @@ import { ParticipantModal } from './participant-modal';
 import { StatusBadge } from './status-badge';
 import { ExportDropdown } from './export-dropdown';
 import { deleteParticipant, updateParticipantStatus } from '@/app/actions/participants';
+import { markParticipantPresent } from '@/app/actions/attendance';
 import { useToast } from '@/components/ui/toast';
 import { formatDate } from '@/lib/utils';
 import {
@@ -21,6 +23,8 @@ import {
   Building2,
   Users2,
   UserCheck,
+  CheckCircle2,
+  ClipboardCheck,
   Pencil,
   Trash2,
   CalendarCheck,
@@ -31,17 +35,30 @@ interface ParticipantTableProps {
   participants: ParticipantWithRelations[];
   agencies: PartnerAgency[];
   cbos: CBOWithAgency[];
+  initialPresentIds?: string[];
 }
 
 export function ParticipantTable({
   participants,
   agencies,
   cbos,
+  initialPresentIds = [],
 }: ParticipantTableProps) {
   const [search, setSearch] = React.useState('');
   const [agencyFilter, setAgencyFilter] = React.useState('all');
   const [cboFilter, setCboFilter] = React.useState('all');
   const [statusFilter, setStatusFilter] = React.useState<ParticipantStatus | 'all'>('all');
+
+  const [presentIds, setPresentIds] = React.useState<Set<string>>(
+    () => new Set(initialPresentIds)
+  );
+  const [markingPresentId, setMarkingPresentId] = React.useState<string | null>(null);
+
+  React.useEffect(() => {
+    if (initialPresentIds) {
+      setPresentIds(new Set(initialPresentIds));
+    }
+  }, [initialPresentIds]);
 
   const [selectedParticipant, setSelectedParticipant] =
     React.useState<ParticipantWithRelations | null>(null);
@@ -140,6 +157,23 @@ export function ParticipantTable({
     }
   };
 
+  const handleMarkPresent = async (id: string, name: string) => {
+    setMarkingPresentId(id);
+    try {
+      const res = await markParticipantPresent(id);
+      if (!res.success) {
+        error(res.error || 'Failed to mark participant present');
+      } else {
+        setPresentIds((prev) => new Set(prev).add(id));
+        success(`"${name}" marked present and added to the Attendance Sheet!`);
+      }
+    } catch {
+      error('An error occurred checking in participant.');
+    } finally {
+      setMarkingPresentId(null);
+    }
+  };
+
   const hasActiveFilters =
     search !== '' || agencyFilter !== 'all' || cboFilter !== 'all' || statusFilter !== 'all';
 
@@ -160,8 +194,16 @@ export function ParticipantTable({
             />
           </div>
 
-          {/* Actions: Export Tally & Add Participant */}
-          <div className="flex items-center gap-2 flex-shrink-0">
+          {/* Actions: Attendance Sheet link, Export Tally & Add Participant */}
+          <div className="flex items-center gap-2 flex-shrink-0 flex-wrap">
+            <Link
+              href="/attendance"
+              className="inline-flex items-center gap-1.5 px-3 py-2 text-xs font-semibold rounded-lg bg-emerald-50 text-emerald-800 border border-emerald-200 hover:bg-emerald-100 transition-colors shadow-2xs"
+            >
+              <ClipboardCheck className="h-4 w-4 text-emerald-600" />
+              <span>Attendance Sheet &rarr;</span>
+            </Link>
+
             <ExportDropdown
               allParticipants={participants}
               filteredParticipants={filteredParticipants}
@@ -260,6 +302,9 @@ export function ParticipantTable({
                 <th scope="col" className="px-6 py-3.5">
                   Date Confirmed
                 </th>
+                <th scope="col" className="px-6 py-3.5 text-center">
+                  Event Attendance
+                </th>
                 <th scope="col" className="px-6 py-3.5 text-right">
                   Actions
                 </th>
@@ -268,7 +313,7 @@ export function ParticipantTable({
             <tbody className="divide-y divide-slate-100">
               {filteredParticipants.length === 0 ? (
                 <tr>
-                  <td colSpan={6} className="px-6 py-12 text-center text-slate-400">
+                  <td colSpan={7} className="px-6 py-12 text-center text-slate-400">
                     <div className="flex flex-col items-center justify-center gap-2">
                       <UserCheck className="h-8 w-8 text-slate-300" />
                       <p className="text-sm font-medium text-slate-600">No participants found</p>
@@ -343,6 +388,28 @@ export function ParticipantTable({
                         </div>
                       ) : (
                         <span className="text-slate-400 italic text-xs">Not confirmed</span>
+                      )}
+                    </td>
+
+                    {/* Event Attendance Check-in */}
+                    <td className="px-6 py-4 text-center">
+                      {presentIds.has(participant.id) ? (
+                        <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold bg-emerald-100 text-emerald-800 border border-emerald-200 shadow-2xs">
+                          <CheckCircle2 className="h-3.5 w-3.5 text-emerald-600" />
+                          <span>Present</span>
+                        </span>
+                      ) : (
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          disabled={markingPresentId === participant.id}
+                          onClick={() => handleMarkPresent(participant.id, participant.name)}
+                          className="h-7 px-2.5 text-xs font-medium border-emerald-300 text-emerald-700 hover:bg-emerald-50 hover:border-emerald-400 shadow-2xs"
+                          title="Mark present in today's attendance sheet"
+                        >
+                          <UserCheck className="h-3.5 w-3.5 mr-1 text-emerald-600" />
+                          {markingPresentId === participant.id ? 'Marking...' : 'Mark Present'}
+                        </Button>
                       )}
                     </td>
 

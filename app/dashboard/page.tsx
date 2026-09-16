@@ -16,6 +16,7 @@ import {
   Database,
   ExternalLink,
   Globe,
+  ClipboardCheck,
 } from 'lucide-react';
 
 export const dynamic = 'force-dynamic';
@@ -374,6 +375,22 @@ export default async function DashboardPage() {
                   </p>
                 </div>
                 <ArrowRight className="h-4 w-4 text-slate-400 group-hover:text-indigo-600 group-hover:translate-x-0.5 transition-all" />
+              </Link>
+
+              <Link
+                href="/attendance"
+                className="w-full flex items-center justify-between p-3 rounded-lg border border-slate-200 hover:border-emerald-300 hover:bg-emerald-50/50 transition-all text-left group"
+              >
+                <div>
+                  <span className="text-xs font-bold text-slate-800 group-hover:text-emerald-900 flex items-center gap-1.5">
+                    <ClipboardCheck className="h-3.5 w-3.5 text-emerald-600" />
+                    Event Attendance Sheet
+                  </span>
+                  <p className="text-[11px] text-slate-500 mt-0.5">
+                    Live check-in, AM/PM time logs, and 12-column export
+                  </p>
+                </div>
+                <ArrowRight className="h-4 w-4 text-slate-400 group-hover:text-emerald-600 group-hover:translate-x-0.5 transition-all" />
               </Link>
             </div>
           </div>

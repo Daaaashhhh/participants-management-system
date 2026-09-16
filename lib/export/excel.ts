@@ -1,5 +1,5 @@
 import * as XLSX from 'xlsx';
-import { ParticipantWithRelations, PartnerAgency, CBOWithAgency } from '@/types/database';
+import { ParticipantWithRelations, PartnerAgency, CBOWithAgency, AttendanceRecord } from '@/types/database';
 import { formatDate } from '@/lib/utils';
 
 export interface ExportOptions {
@@ -180,6 +180,132 @@ export function exportParticipantsToCsv(
 
   link.setAttribute('href', url);
   link.setAttribute('download', `${fileNamePrefix}_${dateStr}.csv`);
+  document.body.appendChild(link);
+  link.click();
+  document.body.removeChild(link);
+  URL.revokeObjectURL(url);
+}
+
+/**
+ * Generates and downloads an official Event Attendance Sheet in Excel (.xlsx) format
+ * matching the exact requested 12 columns.
+ */
+export function exportAttendanceToExcel(
+  records: AttendanceRecord[],
+  eventDate: string = new Date().toISOString().slice(0, 10)
+) {
+  // Title & Metadata rows
+  const sheetData: (string | number)[][] = [
+    ['EVENT ATTENDANCE SHEET'],
+    [`Event Date: ${eventDate}`, '', '', '', '', '', '', '', '', '', '', `Total Attendees: ${records.length}`],
+    [], // empty row for spacing
+    [
+      'NO.',
+      'NAME',
+      'OFFICE/SERVICE/DIVISION/UNIT',
+      'POSITION',
+      'SEX (M/F)',
+      'EMAIL',
+      'CONTACT NO.',
+      'AM IN',
+      'AM OUT',
+      'PM IN',
+      'PM OUT',
+      'REMARKS/ OTHER INFORMATION',
+    ],
+  ];
+
+  // Data rows
+  records.forEach((r, idx) => {
+    sheetData.push([
+      idx + 1,
+      r.name,
+      r.office_agency,
+      r.position || '—',
+      r.sex || '—',
+      r.email || '—',
+      r.contact_no || '—',
+      r.am_in || '—',
+      r.am_out || '—',
+      r.pm_in || '—',
+      r.pm_out || '—',
+      r.remarks || '—',
+    ]);
+  });
+
+  const worksheet = XLSX.utils.aoa_to_sheet(sheetData);
+
+  // Column widths
+  worksheet['!cols'] = [
+    { wch: 6 },  // NO.
+    { wch: 28 }, // NAME
+    { wch: 32 }, // OFFICE/SERVICE/DIVISION/UNIT
+    { wch: 20 }, // POSITION
+    { wch: 12 }, // SEX M/F
+    { wch: 26 }, // EMAIL
+    { wch: 18 }, // CONTACT NO.
+    { wch: 14 }, // AM IN
+    { wch: 14 }, // AM OUT
+    { wch: 14 }, // PM IN
+    { wch: 14 }, // PM OUT
+    { wch: 30 }, // REMARKS/ OTHER INFORMATION
+  ];
+
+  const workbook = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(workbook, worksheet, 'Attendance Sheet');
+
+  const fileName = `attendance_sheet_${eventDate}.xlsx`;
+  XLSX.writeFile(workbook, fileName);
+}
+
+/**
+ * Generates and downloads a CSV of the Event Attendance Sheet
+ */
+export function exportAttendanceToCsv(
+  records: AttendanceRecord[],
+  eventDate: string = new Date().toISOString().slice(0, 10)
+) {
+  const headers = [
+    'NO.',
+    'NAME',
+    'OFFICE/SERVICE/DIVISION/UNIT',
+    'POSITION',
+    'SEX (M/F)',
+    'EMAIL',
+    'CONTACT NO.',
+    'AM IN',
+    'AM OUT',
+    'PM IN',
+    'PM OUT',
+    'REMARKS/ OTHER INFORMATION',
+  ];
+
+  const rows = records.map((r, idx) => [
+    idx + 1,
+    `"${r.name.replace(/"/g, '""')}"`,
+    `"${r.office_agency.replace(/"/g, '""')}"`,
+    `"${(r.position || '').replace(/"/g, '""')}"`,
+    r.sex || '',
+    `"${(r.email || '').replace(/"/g, '""')}"`,
+    `"${(r.contact_no || '').replace(/"/g, '""')}"`,
+    `"${(r.am_in || '').replace(/"/g, '""')}"`,
+    `"${(r.am_out || '').replace(/"/g, '""')}"`,
+    `"${(r.pm_in || '').replace(/"/g, '""')}"`,
+    `"${(r.pm_out || '').replace(/"/g, '""')}"`,
+    `"${(r.remarks || '').replace(/"/g, '""')}"`,
+  ]);
+
+  const csvContent = [
+    headers.join(','),
+    ...rows.map((row) => row.join(',')),
+  ].join('\r\n');
+
+  const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement('a');
+
+  link.setAttribute('href', url);
+  link.setAttribute('download', `attendance_sheet_${eventDate}.csv`);
   document.body.appendChild(link);
   link.click();
   document.body.removeChild(link);

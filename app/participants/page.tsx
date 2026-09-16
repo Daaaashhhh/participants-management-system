@@ -1,15 +1,17 @@
 import { getParticipants } from '@/app/actions/participants';
 import { getAgencies } from '@/app/actions/agencies';
 import { getCbos } from '@/app/actions/cbos';
+import { getTodayPresentParticipantIds } from '@/app/actions/attendance';
 import { ParticipantTable } from '@/components/participants/participant-table';
 
 export const dynamic = 'force-dynamic';
 
 export default async function ParticipantsPage() {
-  const [participants, agencies, cbos] = await Promise.all([
+  const [participants, agencies, cbos, todayPresentIds] = await Promise.all([
     getParticipants(),
     getAgencies(),
     getCbos(),
+    getTodayPresentParticipantIds(),
   ]);
 
   return (
@@ -27,6 +29,7 @@ export default async function ParticipantsPage() {
         participants={participants}
         agencies={agencies}
         cbos={cbos}
+        initialPresentIds={todayPresentIds}
       />
     </div>
   );
