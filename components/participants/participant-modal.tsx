@@ -4,14 +4,14 @@ import * as React from 'react';
 import { Modal } from '@/components/ui/modal';
 import { Button } from '@/components/ui/button';
 import { useToast } from '@/components/ui/toast';
-import { createParticipant, updateParticipant, createBatchParticipants } from '@/app/actions/participants';
+import { updateParticipant, createBatchParticipants } from '@/app/actions/participants';
 import {
   CBOWithAgency,
   PartnerAgency,
   ParticipantStatus,
   ParticipantWithRelations,
 } from '@/types/database';
-import { Plus, Trash2, Users, FileText, CheckCircle2 } from 'lucide-react';
+import { Plus, Trash2, Users, CheckCircle2 } from 'lucide-react';
 
 interface ParticipantRow {
   id: string;

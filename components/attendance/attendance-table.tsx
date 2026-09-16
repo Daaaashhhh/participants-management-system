@@ -7,7 +7,7 @@ import { ConfirmDialog } from '@/components/ui/confirm-dialog';
 import { AttendanceModal } from './attendance-modal';
 import { AttendanceCheckinModal } from './attendance-checkin-modal';
 import { AttendanceExportButton } from './attendance-export-button';
-import { quickLogAttendanceTime, clearAttendanceTime, deleteAttendanceRecord, updateAttendanceField } from '@/app/actions/attendance';
+import { quickLogAttendanceTime, deleteAttendanceRecord, updateAttendanceField } from '@/app/actions/attendance';
 import { useToast } from '@/components/ui/toast';
 import {
   Search,
@@ -21,7 +21,6 @@ import {
   Sunrise,
   Sunset,
   Clock,
-  X,
   Check,
 } from 'lucide-react';
 
@@ -45,7 +44,6 @@ export function AttendanceTable({
   const [isCheckinModalOpen, setIsCheckinModalOpen] = React.useState(false);
   const [recordToDelete, setRecordToDelete] = React.useState<AttendanceRecord | null>(null);
   const [isDeleting, setIsDeleting] = React.useState(false);
-  const [loggingIdField, setLoggingIdField] = React.useState<string | null>(null);
   const [savingCell, setSavingCell] = React.useState<string | null>(null);
   const [savedCell, setSavedCell] = React.useState<string | null>(null);
 
@@ -87,7 +85,7 @@ export function AttendanceTable({
     field: 'am_in' | 'am_out' | 'pm_in' | 'pm_out'
   ) => {
     const key = `${id}-${field}`;
-    setLoggingIdField(key);
+    setSavingCell(key);
 
     const currentTime = new Date().toLocaleTimeString('en-US', {
       hour: '2-digit',
@@ -103,37 +101,16 @@ export function AttendanceTable({
         setRecords((prev) =>
           prev.map((r) => (r.id === id ? { ...r, [field]: currentTime } : r))
         );
+        setSavedCell(key);
+        setTimeout(() => {
+          setSavedCell((cur) => (cur === key ? null : cur));
+        }, 1500);
         success(`Logged ${field.toUpperCase().replace('_', ' ')}: ${currentTime}`);
       }
     } catch {
       error('An error occurred logging time.');
     } finally {
-      setLoggingIdField(null);
-    }
-  };
-
-  // Clear single time stamp
-  const handleClearTime = async (
-    id: string,
-    field: 'am_in' | 'am_out' | 'pm_in' | 'pm_out'
-  ) => {
-    const key = `${id}-${field}`;
-    setLoggingIdField(key);
-
-    try {
-      const res = await clearAttendanceTime(id, field);
-      if (!res.success) {
-        error(res.error || 'Failed to clear time.');
-      } else {
-        setRecords((prev) =>
-          prev.map((r) => (r.id === id ? { ...r, [field]: null } : r))
-        );
-        success(`Cleared ${field.toUpperCase().replace('_', ' ')}.`);
-      }
-    } catch {
-      error('An error occurred clearing time.');
-    } finally {
-      setLoggingIdField(null);
+      setSavingCell(null);
     }
   };
 
