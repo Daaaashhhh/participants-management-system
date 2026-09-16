@@ -329,7 +329,18 @@ export async function updateAttendanceRecord(id: string, formData: FormData) {
  */
 export async function updateAttendanceField(
   id: string,
-  field: 'position' | 'sex' | 'email' | 'contact_no' | 'remarks' | 'name' | 'office_agency',
+  field:
+    | 'position'
+    | 'sex'
+    | 'email'
+    | 'contact_no'
+    | 'remarks'
+    | 'name'
+    | 'office_agency'
+    | 'am_in'
+    | 'am_out'
+    | 'pm_in'
+    | 'pm_out',
   value: string | null
 ): Promise<{ success: boolean; error?: string; data?: AttendanceRecord }> {
   if (!id) return { success: false, error: 'ID is required.' };
@@ -363,6 +374,10 @@ export async function updateAttendanceField(
     ...(field === 'remarks' && { remarks: sanitizedValue === '' ? null : sanitizedValue }),
     ...(field === 'name' && { name: sanitizedValue || '' }),
     ...(field === 'office_agency' && { office_agency: sanitizedValue || '' }),
+    ...(field === 'am_in' && { am_in: sanitizedValue === '' ? null : sanitizedValue }),
+    ...(field === 'am_out' && { am_out: sanitizedValue === '' ? null : sanitizedValue }),
+    ...(field === 'pm_in' && { pm_in: sanitizedValue === '' ? null : sanitizedValue }),
+    ...(field === 'pm_out' && { pm_out: sanitizedValue === '' ? null : sanitizedValue }),
   };
 
   const { data, error } = await supabase

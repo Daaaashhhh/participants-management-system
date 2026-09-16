@@ -226,6 +226,25 @@ export const mockStore = {
     mockDb.participants.push(newParticipant);
     return newParticipant;
   },
+  addParticipantsBatch: (
+    partner_agency_id: string,
+    cbo_id: string,
+    items: { name: string; status: ParticipantStatus }[]
+  ): Participant[] => {
+    const now = new Date().toISOString();
+    const newParticipants: Participant[] = items.map((item) => ({
+      id: crypto.randomUUID(),
+      partner_agency_id,
+      cbo_id,
+      name: item.name.trim(),
+      status: item.status,
+      date_confirmed: item.status === 'Confirmed' ? now : null,
+      created_at: now,
+      updated_at: now,
+    }));
+    mockDb.participants.push(...newParticipants);
+    return newParticipants;
+  },
   updateParticipant: (
     id: string,
     partner_agency_id: string,

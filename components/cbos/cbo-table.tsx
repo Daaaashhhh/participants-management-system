@@ -5,10 +5,11 @@ import { CBOWithAgency, PartnerAgency } from '@/types/database';
 import { Button } from '@/components/ui/button';
 import { ConfirmDialog } from '@/components/ui/confirm-dialog';
 import { CboModal } from './cbo-modal';
+import { ParticipantModal } from '@/components/participants/participant-modal';
 import { deleteCbo } from '@/app/actions/cbos';
 import { useToast } from '@/components/ui/toast';
 import { formatDate } from '@/lib/utils';
-import { Plus, Building2, Users2, Pencil, Trash2, Calendar, Filter } from 'lucide-react';
+import { Plus, Building2, Users2, Pencil, Trash2, Calendar, Filter, UserPlus } from 'lucide-react';
 
 interface CboTableProps {
   cbos: CBOWithAgency[];
@@ -21,6 +22,11 @@ export function CboTable({ cbos, agencies }: CboTableProps) {
   const [isModalOpen, setIsModalOpen] = React.useState(false);
   const [cboToDelete, setCboToDelete] = React.useState<CBOWithAgency | null>(null);
   const [isDeleting, setIsDeleting] = React.useState(false);
+
+  // Quick Add Participants to specific CBO state
+  const [cboForParticipants, setCboForParticipants] = React.useState<CBOWithAgency | null>(null);
+  const [isParticipantModalOpen, setIsParticipantModalOpen] = React.useState(false);
+
   const { success, error } = useToast();
 
   const filteredCbos = React.useMemo(() => {
@@ -146,7 +152,21 @@ export function CboTable({ cbos, agencies }: CboTableProps) {
                         <span>{formatDate(cbo.created_at)}</span>
                       </div>
                     </td>
-                    <td className="px-6 py-4 text-right space-x-1">
+                    <td className="px-6 py-4 text-right space-x-1.5">
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => {
+                          setCboForParticipants(cbo);
+                          setIsParticipantModalOpen(true);
+                        }}
+                        className="h-8 px-2.5 text-xs text-indigo-700 border-indigo-200 hover:bg-indigo-50 hover:border-indigo-300 shadow-2xs inline-flex items-center gap-1 font-medium"
+                        title={`Add participants to ${cbo.name}`}
+                      >
+                        <UserPlus className="h-3.5 w-3.5 text-indigo-600" />
+                        <span>+ Participants</span>
+                      </Button>
+
                       <Button
                         variant="ghost"
                         size="icon"
@@ -172,12 +192,25 @@ export function CboTable({ cbos, agencies }: CboTableProps) {
         </div>
       </div>
 
-      {/* Add/Edit Modal */}
+      {/* Add/Edit CBO Modal */}
       <CboModal
         isOpen={isModalOpen}
         onClose={() => setIsModalOpen(false)}
         cbo={selectedCbo}
         agencies={agencies}
+      />
+
+      {/* Bulk Add Participants Modal under this CBO */}
+      <ParticipantModal
+        isOpen={isParticipantModalOpen}
+        onClose={() => {
+          setIsParticipantModalOpen(false);
+          setCboForParticipants(null);
+        }}
+        agencies={agencies}
+        cbos={cbos}
+        initialAgencyId={cboForParticipants?.partner_agency_id}
+        initialCboId={cboForParticipants?.id}
       />
 
       {/* Delete Confirmation */}

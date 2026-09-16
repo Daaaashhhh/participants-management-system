@@ -157,10 +157,18 @@ export function AttendanceTable({
     }
   };
 
-  // Inline edit blur handler for text columns (position, email, contact_no, remarks)
+  // Inline edit blur handler for text & time columns
   const handleFieldBlur = async (
     id: string,
-    field: 'position' | 'email' | 'contact_no' | 'remarks',
+    field:
+      | 'position'
+      | 'email'
+      | 'contact_no'
+      | 'remarks'
+      | 'am_in'
+      | 'am_out'
+      | 'pm_in'
+      | 'pm_out',
     currentValue: string | null,
     newValue: string
   ) => {
@@ -364,7 +372,7 @@ export function AttendanceTable({
         <div className="flex items-center gap-2">
           <span className="text-base leading-none">✏️</span>
           <span>
-            <strong>Inline Editing:</strong> Click directly into any attendee&apos;s <strong>Position</strong>, <strong>Sex (M/F)</strong>, <strong>Email</strong>, <strong>Contact No.</strong>, or <strong>Remarks</strong> to input or update details. Changes auto-save immediately.
+            <strong>Inline Editing:</strong> Click or type directly into any attendee&apos;s <strong>Position</strong>, <strong>Sex (M/F)</strong>, <strong>Email</strong>, <strong>Contact No.</strong>, <strong>AM/PM Times</strong>, or <strong>Remarks</strong>. Press Enter or click away to auto-save.
           </span>
         </div>
       </div>
@@ -409,29 +417,41 @@ export function AttendanceTable({
                 {/* AM Session Group */}
                 <th
                   scope="col"
-                  className="px-2.5 py-3 w-28 text-center bg-emerald-50/50 border-r border-slate-200 text-emerald-800"
+                  className="px-2 py-3 min-w-[115px] text-center bg-emerald-50/50 border-r border-slate-200 text-emerald-800"
                 >
-                  AM IN
+                  <div className="flex items-center justify-center gap-1">
+                    <span>AM IN</span>
+                    <span className="text-[9px] text-emerald-600 font-normal">✏️</span>
+                  </div>
                 </th>
                 <th
                   scope="col"
-                  className="px-2.5 py-3 w-28 text-center bg-emerald-50/50 border-r border-slate-200 text-emerald-800"
+                  className="px-2 py-3 min-w-[115px] text-center bg-emerald-50/50 border-r border-slate-200 text-emerald-800"
                 >
-                  AM OUT
+                  <div className="flex items-center justify-center gap-1">
+                    <span>AM OUT</span>
+                    <span className="text-[9px] text-emerald-600 font-normal">✏️</span>
+                  </div>
                 </th>
 
                 {/* PM Session Group */}
                 <th
                   scope="col"
-                  className="px-2.5 py-3 w-28 text-center bg-indigo-50/50 border-r border-slate-200 text-indigo-800"
+                  className="px-2 py-3 min-w-[115px] text-center bg-indigo-50/50 border-r border-slate-200 text-indigo-800"
                 >
-                  PM IN
+                  <div className="flex items-center justify-center gap-1">
+                    <span>PM IN</span>
+                    <span className="text-[9px] text-indigo-600 font-normal">✏️</span>
+                  </div>
                 </th>
                 <th
                   scope="col"
-                  className="px-2.5 py-3 w-28 text-center bg-indigo-50/50 border-r border-slate-200 text-indigo-800"
+                  className="px-2 py-3 min-w-[115px] text-center bg-indigo-50/50 border-r border-slate-200 text-indigo-800"
                 >
-                  PM OUT
+                  <div className="flex items-center justify-center gap-1">
+                    <span>PM OUT</span>
+                    <span className="text-[9px] text-indigo-600 font-normal">✏️</span>
+                  </div>
                 </th>
 
                 <th scope="col" className="px-4 py-3 min-w-[160px] border-r border-slate-200">
@@ -603,108 +623,156 @@ export function AttendanceTable({
                       </div>
                     </td>
 
-                    {/* AM IN */}
-                    <td className="px-2.5 py-2.5 text-center border-r border-slate-100 bg-emerald-50/20">
-                      {r.am_in ? (
-                        <div className="group relative inline-flex items-center gap-1">
-                          <span className="px-2 py-0.5 rounded bg-emerald-100 text-emerald-800 font-bold text-xs">
-                            {r.am_in}
-                          </span>
-                          <button
-                            onClick={() => handleClearTime(r.id, 'am_in')}
-                            className="opacity-0 group-hover:opacity-100 p-0.5 text-slate-400 hover:text-rose-600 transition-opacity"
-                            title="Clear timestamp"
-                          >
-                            <X className="h-3 w-3" />
-                          </button>
-                        </div>
-                      ) : (
+                    {/* AM IN (Typeable) */}
+                    <td className="px-1.5 py-1.5 text-center border-r border-slate-100 bg-emerald-50/20 relative group/amin">
+                      <div className="relative flex items-center justify-center">
+                        <input
+                          type="text"
+                          defaultValue={r.am_in || ''}
+                          key={`${r.id}-am_in-${r.am_in || ''}`}
+                          placeholder="--:-- AM"
+                          onBlur={(e) =>
+                            handleFieldBlur(r.id, 'am_in', r.am_in, e.target.value)
+                          }
+                          onKeyDown={(e) => {
+                            if (e.key === 'Enter') e.currentTarget.blur();
+                          }}
+                          className="w-full text-center px-1.5 py-1 text-xs font-mono font-bold text-emerald-900 bg-transparent hover:bg-white/80 rounded border border-transparent hover:border-emerald-300 focus:bg-white focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500 focus:outline-none transition-all placeholder:text-slate-300 placeholder:font-normal"
+                          title="Type AM IN time (e.g. 08:30 AM). Auto-saves on blur/Enter."
+                        />
                         <button
+                          type="button"
                           onClick={() => handleQuickTimeLog(r.id, 'am_in')}
-                          disabled={loggingIdField === `${r.id}-am_in`}
-                          className="px-2 py-1 text-[11px] font-semibold text-emerald-700 bg-emerald-50 hover:bg-emerald-100 border border-emerald-200 rounded transition-colors"
+                          className="absolute right-0.5 opacity-0 group-hover/amin:opacity-100 focus:opacity-100 p-0.5 text-emerald-600 hover:text-emerald-800 hover:bg-emerald-100 rounded transition-opacity"
+                          title="Stamp current time"
                         >
-                          {loggingIdField === `${r.id}-am_in` ? '...' : '+ Log In'}
+                          <Clock className="h-3 w-3" />
                         </button>
-                      )}
+                        {savingCell === `${r.id}-am_in` && (
+                          <span className="absolute left-0.5 text-[9px] text-emerald-600 font-bold animate-pulse bg-white/90 px-0.5 rounded shadow-2xs">
+                            ...
+                          </span>
+                        )}
+                        {savedCell === `${r.id}-am_in` && (
+                          <span className="absolute left-0.5 text-emerald-600 bg-white/90 px-0.5 rounded">
+                            <Check className="h-3 w-3" />
+                          </span>
+                        )}
+                      </div>
                     </td>
 
-                    {/* AM OUT */}
-                    <td className="px-2.5 py-2.5 text-center border-r border-slate-100 bg-emerald-50/20">
-                      {r.am_out ? (
-                        <div className="group relative inline-flex items-center gap-1">
-                          <span className="px-2 py-0.5 rounded bg-slate-100 text-slate-800 font-bold text-xs">
-                            {r.am_out}
-                          </span>
-                          <button
-                            onClick={() => handleClearTime(r.id, 'am_out')}
-                            className="opacity-0 group-hover:opacity-100 p-0.5 text-slate-400 hover:text-rose-600 transition-opacity"
-                            title="Clear timestamp"
-                          >
-                            <X className="h-3 w-3" />
-                          </button>
-                        </div>
-                      ) : (
+                    {/* AM OUT (Typeable) */}
+                    <td className="px-1.5 py-1.5 text-center border-r border-slate-100 bg-emerald-50/20 relative group/amout">
+                      <div className="relative flex items-center justify-center">
+                        <input
+                          type="text"
+                          defaultValue={r.am_out || ''}
+                          key={`${r.id}-am_out-${r.am_out || ''}`}
+                          placeholder="--:-- AM"
+                          onBlur={(e) =>
+                            handleFieldBlur(r.id, 'am_out', r.am_out, e.target.value)
+                          }
+                          onKeyDown={(e) => {
+                            if (e.key === 'Enter') e.currentTarget.blur();
+                          }}
+                          className="w-full text-center px-1.5 py-1 text-xs font-mono font-bold text-slate-800 bg-transparent hover:bg-white/80 rounded border border-transparent hover:border-emerald-300 focus:bg-white focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500 focus:outline-none transition-all placeholder:text-slate-300 placeholder:font-normal"
+                          title="Type AM OUT time (e.g. 12:00 PM). Auto-saves on blur/Enter."
+                        />
                         <button
+                          type="button"
                           onClick={() => handleQuickTimeLog(r.id, 'am_out')}
-                          disabled={loggingIdField === `${r.id}-am_out`}
-                          className="px-2 py-1 text-[11px] font-semibold text-slate-600 bg-slate-50 hover:bg-slate-100 border border-slate-200 rounded transition-colors"
+                          className="absolute right-0.5 opacity-0 group-hover/amout:opacity-100 focus:opacity-100 p-0.5 text-slate-500 hover:text-slate-800 hover:bg-slate-200 rounded transition-opacity"
+                          title="Stamp current time"
                         >
-                          {loggingIdField === `${r.id}-am_out` ? '...' : '+ Log Out'}
+                          <Clock className="h-3 w-3" />
                         </button>
-                      )}
+                        {savingCell === `${r.id}-am_out` && (
+                          <span className="absolute left-0.5 text-[9px] text-emerald-600 font-bold animate-pulse bg-white/90 px-0.5 rounded shadow-2xs">
+                            ...
+                          </span>
+                        )}
+                        {savedCell === `${r.id}-am_out` && (
+                          <span className="absolute left-0.5 text-emerald-600 bg-white/90 px-0.5 rounded">
+                            <Check className="h-3 w-3" />
+                          </span>
+                        )}
+                      </div>
                     </td>
 
-                    {/* PM IN */}
-                    <td className="px-2.5 py-2.5 text-center border-r border-slate-100 bg-indigo-50/20">
-                      {r.pm_in ? (
-                        <div className="group relative inline-flex items-center gap-1">
-                          <span className="px-2 py-0.5 rounded bg-indigo-100 text-indigo-800 font-bold text-xs">
-                            {r.pm_in}
-                          </span>
-                          <button
-                            onClick={() => handleClearTime(r.id, 'pm_in')}
-                            className="opacity-0 group-hover:opacity-100 p-0.5 text-slate-400 hover:text-rose-600 transition-opacity"
-                            title="Clear timestamp"
-                          >
-                            <X className="h-3 w-3" />
-                          </button>
-                        </div>
-                      ) : (
+                    {/* PM IN (Typeable) */}
+                    <td className="px-1.5 py-1.5 text-center border-r border-slate-100 bg-indigo-50/20 relative group/pmin">
+                      <div className="relative flex items-center justify-center">
+                        <input
+                          type="text"
+                          defaultValue={r.pm_in || ''}
+                          key={`${r.id}-pm_in-${r.pm_in || ''}`}
+                          placeholder="--:-- PM"
+                          onBlur={(e) =>
+                            handleFieldBlur(r.id, 'pm_in', r.pm_in, e.target.value)
+                          }
+                          onKeyDown={(e) => {
+                            if (e.key === 'Enter') e.currentTarget.blur();
+                          }}
+                          className="w-full text-center px-1.5 py-1 text-xs font-mono font-bold text-indigo-900 bg-transparent hover:bg-white/80 rounded border border-transparent hover:border-indigo-300 focus:bg-white focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 focus:outline-none transition-all placeholder:text-slate-300 placeholder:font-normal"
+                          title="Type PM IN time (e.g. 01:00 PM). Auto-saves on blur/Enter."
+                        />
                         <button
+                          type="button"
                           onClick={() => handleQuickTimeLog(r.id, 'pm_in')}
-                          disabled={loggingIdField === `${r.id}-pm_in`}
-                          className="px-2 py-1 text-[11px] font-semibold text-indigo-700 bg-indigo-50 hover:bg-indigo-100 border border-indigo-200 rounded transition-colors"
+                          className="absolute right-0.5 opacity-0 group-hover/pmin:opacity-100 focus:opacity-100 p-0.5 text-indigo-600 hover:text-indigo-800 hover:bg-indigo-100 rounded transition-opacity"
+                          title="Stamp current time"
                         >
-                          {loggingIdField === `${r.id}-pm_in` ? '...' : '+ Log In'}
+                          <Clock className="h-3 w-3" />
                         </button>
-                      )}
+                        {savingCell === `${r.id}-pm_in` && (
+                          <span className="absolute left-0.5 text-[9px] text-indigo-600 font-bold animate-pulse bg-white/90 px-0.5 rounded shadow-2xs">
+                            ...
+                          </span>
+                        )}
+                        {savedCell === `${r.id}-pm_in` && (
+                          <span className="absolute left-0.5 text-indigo-600 bg-white/90 px-0.5 rounded">
+                            <Check className="h-3 w-3" />
+                          </span>
+                        )}
+                      </div>
                     </td>
 
-                    {/* PM OUT */}
-                    <td className="px-2.5 py-2.5 text-center border-r border-slate-100 bg-indigo-50/20">
-                      {r.pm_out ? (
-                        <div className="group relative inline-flex items-center gap-1">
-                          <span className="px-2 py-0.5 rounded bg-slate-100 text-slate-800 font-bold text-xs">
-                            {r.pm_out}
-                          </span>
-                          <button
-                            onClick={() => handleClearTime(r.id, 'pm_out')}
-                            className="opacity-0 group-hover:opacity-100 p-0.5 text-slate-400 hover:text-rose-600 transition-opacity"
-                            title="Clear timestamp"
-                          >
-                            <X className="h-3 w-3" />
-                          </button>
-                        </div>
-                      ) : (
+                    {/* PM OUT (Typeable) */}
+                    <td className="px-1.5 py-1.5 text-center border-r border-slate-100 bg-indigo-50/20 relative group/pmout">
+                      <div className="relative flex items-center justify-center">
+                        <input
+                          type="text"
+                          defaultValue={r.pm_out || ''}
+                          key={`${r.id}-pm_out-${r.pm_out || ''}`}
+                          placeholder="--:-- PM"
+                          onBlur={(e) =>
+                            handleFieldBlur(r.id, 'pm_out', r.pm_out, e.target.value)
+                          }
+                          onKeyDown={(e) => {
+                            if (e.key === 'Enter') e.currentTarget.blur();
+                          }}
+                          className="w-full text-center px-1.5 py-1 text-xs font-mono font-bold text-slate-800 bg-transparent hover:bg-white/80 rounded border border-transparent hover:border-indigo-300 focus:bg-white focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 focus:outline-none transition-all placeholder:text-slate-300 placeholder:font-normal"
+                          title="Type PM OUT time (e.g. 05:00 PM). Auto-saves on blur/Enter."
+                        />
                         <button
+                          type="button"
                           onClick={() => handleQuickTimeLog(r.id, 'pm_out')}
-                          disabled={loggingIdField === `${r.id}-pm_out`}
-                          className="px-2 py-1 text-[11px] font-semibold text-slate-600 bg-slate-50 hover:bg-slate-100 border border-slate-200 rounded transition-colors"
+                          className="absolute right-0.5 opacity-0 group-hover/pmout:opacity-100 focus:opacity-100 p-0.5 text-slate-500 hover:text-slate-800 hover:bg-slate-200 rounded transition-opacity"
+                          title="Stamp current time"
                         >
-                          {loggingIdField === `${r.id}-pm_out` ? '...' : '+ Log Out'}
+                          <Clock className="h-3 w-3" />
                         </button>
-                      )}
+                        {savingCell === `${r.id}-pm_out` && (
+                          <span className="absolute left-0.5 text-[9px] text-indigo-600 font-bold animate-pulse bg-white/90 px-0.5 rounded shadow-2xs">
+                            ...
+                          </span>
+                        )}
+                        {savedCell === `${r.id}-pm_out` && (
+                          <span className="absolute left-0.5 text-indigo-600 bg-white/90 px-0.5 rounded">
+                            <Check className="h-3 w-3" />
+                          </span>
+                        )}
+                      </div>
                     </td>
 
                     {/* REMARKS/ OTHER INFORMATION (Inline Editable) */}

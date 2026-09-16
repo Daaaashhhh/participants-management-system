@@ -3,7 +3,7 @@
 import { revalidatePath } from 'next/cache';
 import { createClient, isSupabaseConfigured } from '@/lib/supabase/server';
 import { mockStore } from '@/lib/supabase/mock-store';
-import { participantSchema } from '@/lib/validations/participant';
+import { participantSchema, batchParticipantSchema } from '@/lib/validations/participant';
 import { ParticipantStatus, ParticipantWithRelations } from '@/types/database';
 
 export interface ParticipantFilters {
@@ -178,6 +178,105 @@ export async function createParticipant(formData: FormData) {
   revalidatePath('/organized-list');
   revalidatePath('/dashboard');
   return { success: true, data };
+}
+
+/**
+ * Bulk / Batch enroll multiple participants under a specific CBO in a single transaction
+ */
+export async function createBatchParticipants(payload: {
+  partner_agency_id: string;
+  cbo_id: string;
+  participants: { name: string; status?: ParticipantStatus }[];
+}) {
+  const validation = batchParticipantSchema.safeParse(payload);
+  if (!validation.success) {
+    return {
+      success: false,
+      error: validation.error.issues[0]?.message || 'Invalid participant batch data.',
+    };
+  }
+
+  const { partner_agency_id, cbo_id, participants } = validation.data;
+
+  // Filter out any entries that might be blank
+  const validParticipants = participants.filter((p) => p.name.trim().length >= 2);
+  if (validParticipants.length === 0) {
+    return {
+      success: false,
+      error: 'Please provide at least one participant name with at least 2 characters.',
+    };
+  }
+
+  // Validate relational constraint: CBO must belong to selected Partner Agency
+  if (!isSupabaseConfigured()) {
+    const cbos = mockStore.getCbos();
+    const cbo = cbos.find((c) => c.id === cbo_id);
+    if (!cbo) {
+      return { success: false, error: 'Selected CBO does not exist.' };
+    }
+    if (cbo.partner_agency_id !== partner_agency_id) {
+      return {
+        success: false,
+        error: 'The selected CBO does not belong to the selected Partner Agency.',
+      };
+    }
+
+    const created = mockStore.addParticipantsBatch(
+      partner_agency_id,
+      cbo_id,
+      validParticipants as { name: string; status: ParticipantStatus }[]
+    );
+
+    revalidatePath('/participants');
+    revalidatePath('/organized-list');
+    revalidatePath('/dashboard');
+    revalidatePath('/cbos');
+    return { success: true, count: created.length, data: created };
+  }
+
+  const supabase = createClient();
+
+  // Verify relationship in Supabase
+  const { data: cbo, error: cboError } = await supabase
+    .from('cbos')
+    .select('id, partner_agency_id')
+    .eq('id', cbo_id)
+    .single();
+
+  if (cboError || !cbo) {
+    return { success: false, error: 'Selected CBO does not exist.' };
+  }
+
+  if (cbo.partner_agency_id !== partner_agency_id) {
+    return {
+      success: false,
+      error: 'The selected CBO does not belong to the selected Partner Agency.',
+    };
+  }
+
+  const now = new Date().toISOString();
+  const recordsToInsert = validParticipants.map((p) => ({
+    partner_agency_id,
+    cbo_id,
+    name: p.name.trim(),
+    status: (p.status || 'Pending') as ParticipantStatus,
+    date_confirmed: p.status === 'Confirmed' ? now : null,
+  }));
+
+  const { data, error } = await supabase
+    .from('participants')
+    .insert(recordsToInsert)
+    .select();
+
+  if (error) {
+    return { success: false, error: error.message };
+  }
+
+  revalidatePath('/participants');
+  revalidatePath('/organized-list');
+  revalidatePath('/dashboard');
+  revalidatePath('/cbos');
+  return { success: true, count: (data || []).length, data };
 }
 
 export async function updateParticipant(id: string, formData: FormData) {
