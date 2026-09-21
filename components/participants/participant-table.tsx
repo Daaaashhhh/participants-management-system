@@ -92,10 +92,16 @@ export function ParticipantTable({
   // Client-side filtering
   const filteredParticipants = React.useMemo(() => {
     return participants.filter((p) => {
-      // Search
+      // Search across name, position, email, contact_no, remarks
       if (search.trim()) {
         const q = search.toLowerCase();
-        if (!p.name.toLowerCase().includes(q)) return false;
+        const matches =
+          p.name.toLowerCase().includes(q) ||
+          Boolean(p.position && p.position.toLowerCase().includes(q)) ||
+          Boolean(p.email && p.email.toLowerCase().includes(q)) ||
+          Boolean(p.contact_no && p.contact_no.toLowerCase().includes(q)) ||
+          Boolean(p.remarks && p.remarks.toLowerCase().includes(q));
+        if (!matches) return false;
       }
       // Agency
       if (agencyFilter !== 'all' && p.partner_agency_id !== agencyFilter) {
@@ -287,25 +293,31 @@ export function ParticipantTable({
           <table className="w-full text-left text-sm text-slate-600">
             <thead className="bg-slate-50 border-b border-slate-200 text-xs font-semibold uppercase tracking-wider text-slate-500">
               <tr>
-                <th scope="col" className="px-6 py-3.5">
+                <th scope="col" className="px-5 py-3.5">
                   Participant Name
                 </th>
-                <th scope="col" className="px-6 py-3.5">
+                <th scope="col" className="px-4 py-3.5">
+                  Position & Sex
+                </th>
+                <th scope="col" className="px-4 py-3.5">
+                  Contact Details
+                </th>
+                <th scope="col" className="px-4 py-3.5">
                   Partner Agency
                 </th>
-                <th scope="col" className="px-6 py-3.5">
+                <th scope="col" className="px-4 py-3.5">
                   CBO
                 </th>
-                <th scope="col" className="px-6 py-3.5">
+                <th scope="col" className="px-4 py-3.5">
                   Status
                 </th>
-                <th scope="col" className="px-6 py-3.5">
+                <th scope="col" className="px-4 py-3.5">
                   Date Confirmed
                 </th>
-                <th scope="col" className="px-6 py-3.5 text-center">
+                <th scope="col" className="px-4 py-3.5 text-center">
                   Event Attendance
                 </th>
-                <th scope="col" className="px-6 py-3.5 text-right">
+                <th scope="col" className="px-4 py-3.5 text-right">
                   Actions
                 </th>
               </tr>
@@ -313,7 +325,7 @@ export function ParticipantTable({
             <tbody className="divide-y divide-slate-100">
               {filteredParticipants.length === 0 ? (
                 <tr>
-                  <td colSpan={7} className="px-6 py-12 text-center text-slate-400">
+                  <td colSpan={9} className="px-6 py-12 text-center text-slate-400">
                     <div className="flex flex-col items-center justify-center gap-2">
                       <UserCheck className="h-8 w-8 text-slate-300" />
                       <p className="text-sm font-medium text-slate-600">No participants found</p>
@@ -329,9 +341,9 @@ export function ParticipantTable({
                 filteredParticipants.map((participant) => (
                   <tr key={participant.id} className="hover:bg-slate-50/75 transition-colors">
                     {/* Name */}
-                    <td className="px-6 py-4 font-semibold text-slate-900">
+                    <td className="px-5 py-4 font-semibold text-slate-900">
                       <div className="flex items-center gap-3">
-                        <div className="h-8 w-8 rounded-full bg-slate-100 text-slate-700 flex items-center justify-center font-bold text-xs">
+                        <div className="h-8 w-8 rounded-full bg-slate-100 text-slate-700 flex items-center justify-center font-bold text-xs shrink-0">
                           {participant.name
                             .split(' ')
                             .map((n) => n[0])
@@ -339,12 +351,56 @@ export function ParticipantTable({
                             .join('')
                             .toUpperCase()}
                         </div>
-                        <span>{participant.name}</span>
+                        <div className="min-w-0">
+                          <p className="font-semibold text-slate-900 truncate">{participant.name}</p>
+                          {participant.remarks && (
+                            <p className="text-[11px] text-slate-400 font-normal truncate max-w-[180px]" title={participant.remarks}>
+                              {participant.remarks}
+                            </p>
+                          )}
+                        </div>
                       </div>
                     </td>
 
+                    {/* Position & Sex */}
+                    <td className="px-4 py-4 text-xs">
+                      {participant.position ? (
+                        <div className="font-medium text-slate-800">{participant.position}</div>
+                      ) : (
+                        <div className="text-slate-400 italic text-[11px]">—</div>
+                      )}
+                      {participant.sex && (
+                        <span
+                          className={`inline-block mt-0.5 px-1.5 py-0.5 rounded text-[10px] font-bold ${
+                            participant.sex === 'M'
+                              ? 'bg-blue-50 text-blue-700 border border-blue-200'
+                              : 'bg-pink-50 text-pink-700 border border-pink-200'
+                          }`}
+                        >
+                          {participant.sex === 'M' ? 'Male (M)' : 'Female (F)'}
+                        </span>
+                      )}
+                    </td>
+
+                    {/* Contact Details */}
+                    <td className="px-4 py-4 text-xs space-y-0.5">
+                      {participant.email ? (
+                        <div className="text-slate-700 truncate max-w-[170px]" title={participant.email}>
+                          {participant.email}
+                        </div>
+                      ) : null}
+                      {participant.contact_no ? (
+                        <div className="text-slate-500 font-mono text-[11px]">
+                          {participant.contact_no}
+                        </div>
+                      ) : null}
+                      {!participant.email && !participant.contact_no && (
+                        <span className="text-slate-400 italic text-[11px]">—</span>
+                      )}
+                    </td>
+
                     {/* Agency */}
-                    <td className="px-6 py-4 text-xs font-medium text-slate-700">
+                    <td className="px-4 py-4 text-xs font-medium text-slate-700">
                       <div className="flex items-center gap-1.5">
                         <Building2 className="h-3.5 w-3.5 text-slate-400" />
                         <span>{participant.partner_agency?.name || 'Unassigned'}</span>
@@ -352,7 +408,7 @@ export function ParticipantTable({
                     </td>
 
                     {/* CBO */}
-                    <td className="px-6 py-4 text-xs font-medium text-slate-700">
+                    <td className="px-4 py-4 text-xs font-medium text-slate-700">
                       <div className="flex items-center gap-1.5">
                         <Users2 className="h-3.5 w-3.5 text-slate-400" />
                         <span>{participant.cbo?.name || 'Unassigned'}</span>

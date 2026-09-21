@@ -7,7 +7,7 @@ import { ConfirmDialog } from '@/components/ui/confirm-dialog';
 import { AttendanceModal } from './attendance-modal';
 import { AttendanceCheckinModal } from './attendance-checkin-modal';
 import { AttendanceExportButton } from './attendance-export-button';
-import { quickLogAttendanceTime, deleteAttendanceRecord, updateAttendanceField } from '@/app/actions/attendance';
+import { deleteAttendanceRecord, updateAttendanceField } from '@/app/actions/attendance';
 import { useToast } from '@/components/ui/toast';
 import {
   Search,
@@ -17,11 +17,8 @@ import {
   Pencil,
   Trash2,
   Users,
-  Sun,
-  Sunrise,
-  Sunset,
-  Clock,
   Check,
+  UserPlus,
 } from 'lucide-react';
 
 interface AttendanceTableProps {
@@ -68,51 +65,14 @@ export function AttendanceTable({
 
   // Metrics summary
   const totalAttendees = records.length;
-  const amInCount = records.filter((r) => Boolean(r.am_in)).length;
-  const amOutCount = records.filter((r) => Boolean(r.am_out)).length;
-  const pmInCount = records.filter((r) => Boolean(r.pm_in)).length;
-  const pmOutCount = records.filter((r) => Boolean(r.pm_out)).length;
+  const preRegCount = records.filter((r) => Boolean(r.participant_id)).length;
+  const walkInCount = records.filter((r) => !r.participant_id).length;
 
   const presentParticipantIds = React.useMemo(() => {
     return records
       .map((r) => r.participant_id)
       .filter((id): id is string => Boolean(id));
   }, [records]);
-
-  // Quick single-click time stamp
-  const handleQuickTimeLog = async (
-    id: string,
-    field: 'am_in' | 'am_out' | 'pm_in' | 'pm_out'
-  ) => {
-    const key = `${id}-${field}`;
-    setSavingCell(key);
-
-    const currentTime = new Date().toLocaleTimeString('en-US', {
-      hour: '2-digit',
-      minute: '2-digit',
-      hour12: true,
-    });
-
-    try {
-      const res = await quickLogAttendanceTime(id, field, currentTime);
-      if (!res.success) {
-        error(res.error || 'Failed to log time.');
-      } else {
-        setRecords((prev) =>
-          prev.map((r) => (r.id === id ? { ...r, [field]: currentTime } : r))
-        );
-        setSavedCell(key);
-        setTimeout(() => {
-          setSavedCell((cur) => (cur === key ? null : cur));
-        }, 1500);
-        success(`Logged ${field.toUpperCase().replace('_', ' ')}: ${currentTime}`);
-      }
-    } catch {
-      error('An error occurred logging time.');
-    } finally {
-      setSavingCell(null);
-    }
-  };
 
   const handleDelete = async () => {
     if (!recordToDelete) return;
@@ -134,18 +94,10 @@ export function AttendanceTable({
     }
   };
 
-  // Inline edit blur handler for text & time columns
+  // Inline edit blur handler for text columns
   const handleFieldBlur = async (
     id: string,
-    field:
-      | 'position'
-      | 'email'
-      | 'contact_no'
-      | 'remarks'
-      | 'am_in'
-      | 'am_out'
-      | 'pm_in'
-      | 'pm_out',
+    field: 'position' | 'email' | 'contact_no' | 'remarks',
     currentValue: string | null,
     newValue: string
   ) => {
@@ -229,7 +181,7 @@ export function AttendanceTable({
   return (
     <div className="space-y-6">
       {/* Metrics Cards */}
-      <div className="grid grid-cols-2 sm:grid-cols-5 gap-3.5">
+      <div className="grid grid-cols-2 sm:grid-cols-4 gap-3.5">
         <div className="bg-white p-4 rounded-xl border border-slate-200 shadow-2xs">
           <div className="flex items-center justify-between">
             <span className="text-xs font-semibold text-slate-500 uppercase tracking-wider">
@@ -244,45 +196,34 @@ export function AttendanceTable({
         <div className="bg-white p-4 rounded-xl border border-emerald-200/70 bg-gradient-to-br from-emerald-50/30 to-white shadow-2xs">
           <div className="flex items-center justify-between">
             <span className="text-xs font-semibold text-emerald-700 uppercase tracking-wider">
-              AM IN
+              Pre-Registered
             </span>
-            <Sunrise className="h-4 w-4 text-emerald-600" />
+            <UserCheck className="h-4 w-4 text-emerald-600" />
           </div>
-          <p className="text-2xl font-bold text-emerald-900 mt-1">{amInCount}</p>
-          <span className="text-[11px] text-emerald-700 font-medium">Morning sign-in</span>
-        </div>
-
-        <div className="bg-white p-4 rounded-xl border border-slate-200 shadow-2xs">
-          <div className="flex items-center justify-between">
-            <span className="text-xs font-semibold text-slate-500 uppercase tracking-wider">
-              AM OUT
-            </span>
-            <Sun className="h-4 w-4 text-amber-500" />
-          </div>
-          <p className="text-2xl font-bold text-slate-900 mt-1">{amOutCount}</p>
-          <span className="text-[11px] text-slate-400">Lunch / Break</span>
+          <p className="text-2xl font-bold text-emerald-900 mt-1">{preRegCount}</p>
+          <span className="text-[11px] text-emerald-700 font-medium">From participant registry</span>
         </div>
 
         <div className="bg-white p-4 rounded-xl border border-indigo-200/70 bg-gradient-to-br from-indigo-50/30 to-white shadow-2xs">
           <div className="flex items-center justify-between">
             <span className="text-xs font-semibold text-indigo-700 uppercase tracking-wider">
-              PM IN
+              Walk-Ins
             </span>
-            <Clock className="h-4 w-4 text-indigo-600" />
+            <UserPlus className="h-4 w-4 text-indigo-600" />
           </div>
-          <p className="text-2xl font-bold text-indigo-900 mt-1">{pmInCount}</p>
-          <span className="text-[11px] text-indigo-700 font-medium">Afternoon return</span>
+          <p className="text-2xl font-bold text-indigo-900 mt-1">{walkInCount}</p>
+          <span className="text-[11px] text-indigo-700 font-medium">On-site registrants</span>
         </div>
 
         <div className="bg-white p-4 rounded-xl border border-slate-200 shadow-2xs">
           <div className="flex items-center justify-between">
             <span className="text-xs font-semibold text-slate-500 uppercase tracking-wider">
-              PM OUT
+              Event Date
             </span>
-            <Sunset className="h-4 w-4 text-orange-500" />
+            <Calendar className="h-4 w-4 text-slate-400" />
           </div>
-          <p className="text-2xl font-bold text-slate-900 mt-1">{pmOutCount}</p>
-          <span className="text-[11px] text-slate-400">Final departure</span>
+          <p className="text-base font-bold text-slate-900 mt-2 font-mono">{selectedDate}</p>
+          <span className="text-[11px] text-slate-400">Attendance session</span>
         </div>
       </div>
 
@@ -349,12 +290,12 @@ export function AttendanceTable({
         <div className="flex items-center gap-2">
           <span className="text-base leading-none">✏️</span>
           <span>
-            <strong>Inline Editing:</strong> Click or type directly into any attendee&apos;s <strong>Position</strong>, <strong>Sex (M/F)</strong>, <strong>Email</strong>, <strong>Contact No.</strong>, <strong>AM/PM Times</strong>, or <strong>Remarks</strong>. Press Enter or click away to auto-save.
+            <strong>Inline Editing:</strong> Click or type directly into any attendee&apos;s <strong>Position</strong>, <strong>Sex (M/F)</strong>, <strong>Email</strong>, <strong>Contact No.</strong>, or <strong>Remarks</strong>. AM/PM times and signatures are left blank for handwriting.
           </span>
         </div>
       </div>
 
-      {/* Main 12-Column Attendance Sheet Table */}
+      {/* Main Attendance Sheet Table */}
       <div className="bg-white rounded-xl border border-slate-200 shadow-xs overflow-hidden">
         <div className="overflow-x-auto">
           <table className="w-full text-left text-sm text-slate-600 border-collapse">
@@ -394,41 +335,37 @@ export function AttendanceTable({
                 {/* AM Session Group */}
                 <th
                   scope="col"
-                  className="px-2 py-3 min-w-[115px] text-center bg-emerald-50/50 border-r border-slate-200 text-emerald-800"
+                  className="px-2 py-3 min-w-[90px] text-center bg-emerald-50/50 border-r border-slate-200 text-emerald-800"
                 >
-                  <div className="flex items-center justify-center gap-1">
-                    <span>AM IN</span>
-                    <span className="text-[9px] text-emerald-600 font-normal">✏️</span>
-                  </div>
+                  AM IN
                 </th>
                 <th
                   scope="col"
-                  className="px-2 py-3 min-w-[115px] text-center bg-emerald-50/50 border-r border-slate-200 text-emerald-800"
+                  className="px-2 py-3 min-w-[90px] text-center bg-emerald-50/50 border-r border-slate-200 text-emerald-800"
                 >
-                  <div className="flex items-center justify-center gap-1">
-                    <span>AM OUT</span>
-                    <span className="text-[9px] text-emerald-600 font-normal">✏️</span>
-                  </div>
+                  AM OUT
                 </th>
 
                 {/* PM Session Group */}
                 <th
                   scope="col"
-                  className="px-2 py-3 min-w-[115px] text-center bg-indigo-50/50 border-r border-slate-200 text-indigo-800"
+                  className="px-2 py-3 min-w-[90px] text-center bg-indigo-50/50 border-r border-slate-200 text-indigo-800"
                 >
-                  <div className="flex items-center justify-center gap-1">
-                    <span>PM IN</span>
-                    <span className="text-[9px] text-indigo-600 font-normal">✏️</span>
-                  </div>
+                  PM IN
                 </th>
                 <th
                   scope="col"
-                  className="px-2 py-3 min-w-[115px] text-center bg-indigo-50/50 border-r border-slate-200 text-indigo-800"
+                  className="px-2 py-3 min-w-[90px] text-center bg-indigo-50/50 border-r border-slate-200 text-indigo-800"
                 >
-                  <div className="flex items-center justify-center gap-1">
-                    <span>PM OUT</span>
-                    <span className="text-[9px] text-indigo-600 font-normal">✏️</span>
-                  </div>
+                  PM OUT
+                </th>
+
+                {/* SIGNATURE */}
+                <th
+                  scope="col"
+                  className="px-3 py-3 min-w-[120px] text-center border-r border-slate-200 text-slate-700 bg-slate-50/70"
+                >
+                  SIGNATURE
                 </th>
 
                 <th scope="col" className="px-4 py-3 min-w-[160px] border-r border-slate-200">
@@ -443,7 +380,7 @@ export function AttendanceTable({
             <tbody className="divide-y divide-slate-100 font-medium">
               {filteredRecords.length === 0 ? (
                 <tr>
-                  <td colSpan={13} className="px-6 py-14 text-center text-slate-400">
+                  <td colSpan={14} className="px-6 py-14 text-center text-slate-400">
                     <div className="flex flex-col items-center justify-center gap-2">
                       <Calendar className="h-9 w-9 text-slate-300" />
                       <p className="text-sm font-semibold text-slate-700">
@@ -600,157 +537,20 @@ export function AttendanceTable({
                       </div>
                     </td>
 
-                    {/* AM IN (Typeable) */}
-                    <td className="px-1.5 py-1.5 text-center border-r border-slate-100 bg-emerald-50/20 relative group/amin">
-                      <div className="relative flex items-center justify-center">
-                        <input
-                          type="text"
-                          defaultValue={r.am_in || ''}
-                          key={`${r.id}-am_in-${r.am_in || ''}`}
-                          placeholder="--:-- AM"
-                          onBlur={(e) =>
-                            handleFieldBlur(r.id, 'am_in', r.am_in, e.target.value)
-                          }
-                          onKeyDown={(e) => {
-                            if (e.key === 'Enter') e.currentTarget.blur();
-                          }}
-                          className="w-full text-center px-1.5 py-1 text-xs font-mono font-bold text-emerald-900 bg-transparent hover:bg-white/80 rounded border border-transparent hover:border-emerald-300 focus:bg-white focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500 focus:outline-none transition-all placeholder:text-slate-300 placeholder:font-normal"
-                          title="Type AM IN time (e.g. 08:30 AM). Auto-saves on blur/Enter."
-                        />
-                        <button
-                          type="button"
-                          onClick={() => handleQuickTimeLog(r.id, 'am_in')}
-                          className="absolute right-0.5 opacity-0 group-hover/amin:opacity-100 focus:opacity-100 p-0.5 text-emerald-600 hover:text-emerald-800 hover:bg-emerald-100 rounded transition-opacity"
-                          title="Stamp current time"
-                        >
-                          <Clock className="h-3 w-3" />
-                        </button>
-                        {savingCell === `${r.id}-am_in` && (
-                          <span className="absolute left-0.5 text-[9px] text-emerald-600 font-bold animate-pulse bg-white/90 px-0.5 rounded shadow-2xs">
-                            ...
-                          </span>
-                        )}
-                        {savedCell === `${r.id}-am_in` && (
-                          <span className="absolute left-0.5 text-emerald-600 bg-white/90 px-0.5 rounded">
-                            <Check className="h-3 w-3" />
-                          </span>
-                        )}
-                      </div>
-                    </td>
+                    {/* AM IN — blank for handwriting */}
+                    <td className="px-1.5 py-3 text-center border-r border-slate-100 bg-emerald-50/20 min-w-[90px]" />
 
-                    {/* AM OUT (Typeable) */}
-                    <td className="px-1.5 py-1.5 text-center border-r border-slate-100 bg-emerald-50/20 relative group/amout">
-                      <div className="relative flex items-center justify-center">
-                        <input
-                          type="text"
-                          defaultValue={r.am_out || ''}
-                          key={`${r.id}-am_out-${r.am_out || ''}`}
-                          placeholder="--:-- AM"
-                          onBlur={(e) =>
-                            handleFieldBlur(r.id, 'am_out', r.am_out, e.target.value)
-                          }
-                          onKeyDown={(e) => {
-                            if (e.key === 'Enter') e.currentTarget.blur();
-                          }}
-                          className="w-full text-center px-1.5 py-1 text-xs font-mono font-bold text-slate-800 bg-transparent hover:bg-white/80 rounded border border-transparent hover:border-emerald-300 focus:bg-white focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500 focus:outline-none transition-all placeholder:text-slate-300 placeholder:font-normal"
-                          title="Type AM OUT time (e.g. 12:00 PM). Auto-saves on blur/Enter."
-                        />
-                        <button
-                          type="button"
-                          onClick={() => handleQuickTimeLog(r.id, 'am_out')}
-                          className="absolute right-0.5 opacity-0 group-hover/amout:opacity-100 focus:opacity-100 p-0.5 text-slate-500 hover:text-slate-800 hover:bg-slate-200 rounded transition-opacity"
-                          title="Stamp current time"
-                        >
-                          <Clock className="h-3 w-3" />
-                        </button>
-                        {savingCell === `${r.id}-am_out` && (
-                          <span className="absolute left-0.5 text-[9px] text-emerald-600 font-bold animate-pulse bg-white/90 px-0.5 rounded shadow-2xs">
-                            ...
-                          </span>
-                        )}
-                        {savedCell === `${r.id}-am_out` && (
-                          <span className="absolute left-0.5 text-emerald-600 bg-white/90 px-0.5 rounded">
-                            <Check className="h-3 w-3" />
-                          </span>
-                        )}
-                      </div>
-                    </td>
+                    {/* AM OUT — blank for handwriting */}
+                    <td className="px-1.5 py-3 text-center border-r border-slate-100 bg-emerald-50/20 min-w-[90px]" />
 
-                    {/* PM IN (Typeable) */}
-                    <td className="px-1.5 py-1.5 text-center border-r border-slate-100 bg-indigo-50/20 relative group/pmin">
-                      <div className="relative flex items-center justify-center">
-                        <input
-                          type="text"
-                          defaultValue={r.pm_in || ''}
-                          key={`${r.id}-pm_in-${r.pm_in || ''}`}
-                          placeholder="--:-- PM"
-                          onBlur={(e) =>
-                            handleFieldBlur(r.id, 'pm_in', r.pm_in, e.target.value)
-                          }
-                          onKeyDown={(e) => {
-                            if (e.key === 'Enter') e.currentTarget.blur();
-                          }}
-                          className="w-full text-center px-1.5 py-1 text-xs font-mono font-bold text-indigo-900 bg-transparent hover:bg-white/80 rounded border border-transparent hover:border-indigo-300 focus:bg-white focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 focus:outline-none transition-all placeholder:text-slate-300 placeholder:font-normal"
-                          title="Type PM IN time (e.g. 01:00 PM). Auto-saves on blur/Enter."
-                        />
-                        <button
-                          type="button"
-                          onClick={() => handleQuickTimeLog(r.id, 'pm_in')}
-                          className="absolute right-0.5 opacity-0 group-hover/pmin:opacity-100 focus:opacity-100 p-0.5 text-indigo-600 hover:text-indigo-800 hover:bg-indigo-100 rounded transition-opacity"
-                          title="Stamp current time"
-                        >
-                          <Clock className="h-3 w-3" />
-                        </button>
-                        {savingCell === `${r.id}-pm_in` && (
-                          <span className="absolute left-0.5 text-[9px] text-indigo-600 font-bold animate-pulse bg-white/90 px-0.5 rounded shadow-2xs">
-                            ...
-                          </span>
-                        )}
-                        {savedCell === `${r.id}-pm_in` && (
-                          <span className="absolute left-0.5 text-indigo-600 bg-white/90 px-0.5 rounded">
-                            <Check className="h-3 w-3" />
-                          </span>
-                        )}
-                      </div>
-                    </td>
+                    {/* PM IN — blank for handwriting */}
+                    <td className="px-1.5 py-3 text-center border-r border-slate-100 bg-indigo-50/20 min-w-[90px]" />
 
-                    {/* PM OUT (Typeable) */}
-                    <td className="px-1.5 py-1.5 text-center border-r border-slate-100 bg-indigo-50/20 relative group/pmout">
-                      <div className="relative flex items-center justify-center">
-                        <input
-                          type="text"
-                          defaultValue={r.pm_out || ''}
-                          key={`${r.id}-pm_out-${r.pm_out || ''}`}
-                          placeholder="--:-- PM"
-                          onBlur={(e) =>
-                            handleFieldBlur(r.id, 'pm_out', r.pm_out, e.target.value)
-                          }
-                          onKeyDown={(e) => {
-                            if (e.key === 'Enter') e.currentTarget.blur();
-                          }}
-                          className="w-full text-center px-1.5 py-1 text-xs font-mono font-bold text-slate-800 bg-transparent hover:bg-white/80 rounded border border-transparent hover:border-indigo-300 focus:bg-white focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 focus:outline-none transition-all placeholder:text-slate-300 placeholder:font-normal"
-                          title="Type PM OUT time (e.g. 05:00 PM). Auto-saves on blur/Enter."
-                        />
-                        <button
-                          type="button"
-                          onClick={() => handleQuickTimeLog(r.id, 'pm_out')}
-                          className="absolute right-0.5 opacity-0 group-hover/pmout:opacity-100 focus:opacity-100 p-0.5 text-slate-500 hover:text-slate-800 hover:bg-slate-200 rounded transition-opacity"
-                          title="Stamp current time"
-                        >
-                          <Clock className="h-3 w-3" />
-                        </button>
-                        {savingCell === `${r.id}-pm_out` && (
-                          <span className="absolute left-0.5 text-[9px] text-indigo-600 font-bold animate-pulse bg-white/90 px-0.5 rounded shadow-2xs">
-                            ...
-                          </span>
-                        )}
-                        {savedCell === `${r.id}-pm_out` && (
-                          <span className="absolute left-0.5 text-indigo-600 bg-white/90 px-0.5 rounded">
-                            <Check className="h-3 w-3" />
-                          </span>
-                        )}
-                      </div>
-                    </td>
+                    {/* PM OUT — blank for handwriting */}
+                    <td className="px-1.5 py-3 text-center border-r border-slate-100 bg-indigo-50/20 min-w-[90px]" />
+
+                    {/* SIGNATURE — blank for handwriting */}
+                    <td className="px-1.5 py-3 text-center border-r border-slate-100 min-w-[120px]" />
 
                     {/* REMARKS/ OTHER INFORMATION (Inline Editable) */}
                     <td className="px-2 py-2 border-r border-slate-100 relative group/remarks min-w-[150px]">

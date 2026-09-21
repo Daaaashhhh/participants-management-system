@@ -13,11 +13,28 @@ import {
 } from '@/types/database';
 import { Plus, Trash2, Users, CheckCircle2 } from 'lucide-react';
 
+interface ParticipantProfile {
+  position: string;
+  sex: 'M' | 'F' | '';
+  email: string;
+  contact_no: string;
+  remarks: string;
+}
+
 interface ParticipantRow {
   id: string;
   name: string;
   status: ParticipantStatus;
+  profile: ParticipantProfile;
 }
+
+const defaultProfile = (): ParticipantProfile => ({
+  position: '',
+  sex: '',
+  email: '',
+  contact_no: '',
+  remarks: '',
+});
 
 interface ParticipantModalProps {
   isOpen: boolean;
@@ -44,11 +61,12 @@ export function ParticipantModal({
   // Single edit mode state
   const [singleName, setSingleName] = React.useState('');
   const [singleStatus, setSingleStatus] = React.useState<ParticipantStatus>('Pending');
+  const [singleProfile, setSingleProfile] = React.useState<ParticipantProfile>(defaultProfile());
 
   // Multi-participant mode state
-  const [entryMode, setEntryMode] = React.useState<'rows' | 'bulk'>('rows');
+  const [entryMode, setEntryMode] = React.useState<'table' | 'bulk'>('table');
   const [rows, setRows] = React.useState<ParticipantRow[]>([
-    { id: '1', name: '', status: 'Pending' },
+    { id: '1', name: '', status: 'Pending', profile: defaultProfile() },
   ]);
   const [bulkText, setBulkText] = React.useState('');
   const [bulkStatus, setBulkStatus] = React.useState<ParticipantStatus>('Pending');
@@ -71,6 +89,13 @@ export function ParticipantModal({
       setCboId(participant.cbo_id);
       setSingleName(participant.name);
       setSingleStatus(participant.status);
+      setSingleProfile({
+        position: participant.position || '',
+        sex: (participant.sex as 'M' | 'F' | '') || '',
+        email: participant.email || '',
+        contact_no: participant.contact_no || '',
+        remarks: participant.remarks || '',
+      });
     } else {
       const selectedAgency = initialAgencyId || agencies[0]?.id || '';
       setPartnerAgencyId(selectedAgency);
@@ -84,12 +109,13 @@ export function ParticipantModal({
 
       setSingleName('');
       setSingleStatus('Pending');
+      setSingleProfile(defaultProfile());
       setRows([
-        { id: '1', name: '', status: 'Pending' },
+        { id: '1', name: '', status: 'Pending', profile: defaultProfile() },
       ]);
       setBulkText('');
       setBulkStatus('Pending');
-      setEntryMode('rows');
+      setEntryMode('table');
     }
     setError('');
   }, [participant, agencies, cbos, isOpen, initialAgencyId, initialCboId]);
@@ -105,10 +131,13 @@ export function ParticipantModal({
     }
   };
 
-  // Add new participant row in list mode
+  // Add new participant row in table mode
   const handleAddRow = () => {
     const newId = String(Date.now());
-    setRows((prev) => [...prev, { id: newId, name: '', status: 'Pending' }]);
+    setRows((prev) => [
+      ...prev,
+      { id: newId, name: '', status: 'Pending', profile: defaultProfile() },
+    ]);
     setTimeout(() => {
       const nextIndex = rows.length;
       nameInputRefs.current[nextIndex]?.focus();
@@ -132,6 +161,14 @@ export function ParticipantModal({
     );
   };
 
+  const handleRowProfileChange = (id: string, field: keyof ParticipantProfile, value: string) => {
+    setRows((prev) =>
+      prev.map((r) =>
+        r.id === id ? { ...r, profile: { ...r.profile, [field]: value } } : r
+      )
+    );
+  };
+
   // Calculate parsed participants from bulk text
   const parsedBulkNames = React.useMemo(() => {
     return bulkText
@@ -143,7 +180,7 @@ export function ParticipantModal({
   // Calculate total valid participants to add
   const validParticipantCount = React.useMemo(() => {
     if (participant) return 1;
-    if (entryMode === 'rows') {
+    if (entryMode === 'table') {
       return rows.filter((r) => r.name.trim().length >= 2).length;
     }
     return parsedBulkNames.length;
@@ -183,6 +220,12 @@ export function ParticipantModal({
         formData.append('name', singleName.trim());
         formData.append('status', singleStatus);
 
+        if (singleProfile.position) formData.append('position', singleProfile.position.trim());
+        if (singleProfile.sex) formData.append('sex', singleProfile.sex);
+        if (singleProfile.email) formData.append('email', singleProfile.email.trim());
+        if (singleProfile.contact_no) formData.append('contact_no', singleProfile.contact_no.trim());
+        if (singleProfile.remarks) formData.append('remarks', singleProfile.remarks.trim());
+
         const res = await updateParticipant(participant.id, formData);
         if (!res.success) {
           setError(res.error || 'Failed to update participant');
@@ -193,12 +236,29 @@ export function ParticipantModal({
         }
       } else {
         // Multi-Participant Batch Enrollment
-        let participantsToCreate: { name: string; status: ParticipantStatus }[] = [];
+        type ParticipantPayload = {
+          name: string;
+          status: ParticipantStatus;
+          position?: string;
+          sex?: 'M' | 'F' | null;
+          email?: string;
+          contact_no?: string;
+          remarks?: string;
+        };
+        let participantsToCreate: ParticipantPayload[] = [];
 
-        if (entryMode === 'rows') {
+        if (entryMode === 'table') {
           participantsToCreate = rows
-            .map((r) => ({ name: r.name.trim(), status: r.status }))
-            .filter((r) => r.name.length >= 2);
+            .filter((r) => r.name.trim().length >= 2)
+            .map((r) => ({
+              name: r.name.trim(),
+              status: r.status,
+              position: r.profile.position.trim() || undefined,
+              sex: (r.profile.sex as 'M' | 'F') || null,
+              email: r.profile.email.trim() || undefined,
+              contact_no: r.profile.contact_no.trim() || undefined,
+              remarks: r.profile.remarks.trim() || undefined,
+            }));
 
           if (participantsToCreate.length === 0) {
             setError('Please enter at least one participant name (minimum 2 characters).');
@@ -251,10 +311,10 @@ export function ParticipantModal({
       title={participant ? 'Edit Participant' : 'Enroll Participants'}
       description={
         participant
-          ? 'Update participant details under the selected Agency and CBO.'
-          : 'Select the Partner Agency and CBO, then add one or multiple participants in a single action.'
+          ? 'Update participant details and profile information.'
+          : 'Select Agency & CBO, then fill out participant profile details. All fields will be displayed in the Participants directory.'
       }
-      maxWidth="lg"
+      maxWidth="6xl"
     >
       <form onSubmit={handleSubmit} className="space-y-4">
         {/* Step 1 & 2: Agency & CBO Selection */}
@@ -320,47 +380,136 @@ export function ParticipantModal({
 
         {/* SINGLE EDIT MODE */}
         {participant ? (
-          <div className="space-y-3.5 pt-1">
-            <div>
-              <label
-                htmlFor="participant-name"
-                className="block text-xs font-semibold text-slate-700 uppercase tracking-wider mb-1.5"
-              >
-                Participant Full Name <span className="text-rose-500">*</span>
-              </label>
-              <input
-                id="participant-name"
-                type="text"
-                value={singleName}
-                onChange={(e) => setSingleName(e.target.value)}
-                placeholder="e.g. Juan Dela Cruz"
-                className="w-full rounded-lg border border-slate-300 px-3.5 py-2 text-sm text-slate-900 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition-colors"
-              />
+          <div className="space-y-4 pt-1">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div>
+                <label
+                  htmlFor="participant-name"
+                  className="block text-xs font-semibold text-slate-700 uppercase tracking-wider mb-1.5"
+                >
+                  Participant Full Name <span className="text-rose-500">*</span>
+                </label>
+                <input
+                  id="participant-name"
+                  type="text"
+                  value={singleName}
+                  onChange={(e) => setSingleName(e.target.value)}
+                  placeholder="e.g. Juan Dela Cruz"
+                  className="w-full rounded-lg border border-slate-300 px-3.5 py-2 text-sm text-slate-900 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition-colors"
+                />
+              </div>
+
+              <div>
+                <label
+                  htmlFor="participant-status"
+                  className="block text-xs font-semibold text-slate-700 uppercase tracking-wider mb-1.5"
+                >
+                  Status
+                </label>
+                <select
+                  id="participant-status"
+                  value={singleStatus}
+                  onChange={(e) => setSingleStatus(e.target.value as ParticipantStatus)}
+                  className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm text-slate-900 bg-white focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition-colors"
+                >
+                  <option value="Pending">Pending</option>
+                  <option value="Confirmed">Confirmed</option>
+                  <option value="Cancelled">Cancelled</option>
+                </select>
+              </div>
             </div>
 
-            <div>
-              <label
-                htmlFor="participant-status"
-                className="block text-xs font-semibold text-slate-700 uppercase tracking-wider mb-1.5"
-              >
-                Status
-              </label>
-              <select
-                id="participant-status"
-                value={singleStatus}
-                onChange={(e) => setSingleStatus(e.target.value as ParticipantStatus)}
-                className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm text-slate-900 bg-white focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition-colors"
-              >
-                <option value="Pending">Pending</option>
-                <option value="Confirmed">Confirmed</option>
-                <option value="Cancelled">Cancelled</option>
-              </select>
+            {/* Profile Fields for Single Edit */}
+            <div className="p-4 bg-slate-50 border border-slate-200 rounded-xl space-y-3">
+              <h4 className="text-xs font-bold text-slate-800 uppercase tracking-wider">
+                Participant Profile Details
+              </h4>
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+                <div>
+                  <label className="block text-[11px] font-medium text-slate-600 mb-1">
+                    Position / Designation
+                  </label>
+                  <input
+                    type="text"
+                    value={singleProfile.position}
+                    onChange={(e) =>
+                      setSingleProfile((prev) => ({ ...prev, position: e.target.value }))
+                    }
+                    placeholder="e.g. Project Officer"
+                    className="w-full border border-slate-300 rounded-lg px-3 py-1.5 text-xs text-slate-900 focus:ring-1 focus:ring-indigo-500"
+                  />
+                </div>
+                <div>
+                  <label className="block text-[11px] font-medium text-slate-600 mb-1">
+                    Sex
+                  </label>
+                  <select
+                    value={singleProfile.sex}
+                    onChange={(e) =>
+                      setSingleProfile((prev) => ({
+                        ...prev,
+                        sex: e.target.value as 'M' | 'F' | '',
+                      }))
+                    }
+                    className="w-full border border-slate-300 rounded-lg px-3 py-1.5 text-xs text-slate-900 bg-white focus:ring-1 focus:ring-indigo-500"
+                  >
+                    <option value="">— Select Sex —</option>
+                    <option value="M">Male (M)</option>
+                    <option value="F">Female (F)</option>
+                  </select>
+                </div>
+                <div>
+                  <label className="block text-[11px] font-medium text-slate-600 mb-1">
+                    Email Address
+                  </label>
+                  <input
+                    type="email"
+                    value={singleProfile.email}
+                    onChange={(e) =>
+                      setSingleProfile((prev) => ({ ...prev, email: e.target.value }))
+                    }
+                    placeholder="juan@example.com"
+                    className="w-full border border-slate-300 rounded-lg px-3 py-1.5 text-xs text-slate-900 focus:ring-1 focus:ring-indigo-500"
+                  />
+                </div>
+              </div>
+
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-[11px] font-medium text-slate-600 mb-1">
+                    Contact Number
+                  </label>
+                  <input
+                    type="text"
+                    value={singleProfile.contact_no}
+                    onChange={(e) =>
+                      setSingleProfile((prev) => ({ ...prev, contact_no: e.target.value }))
+                    }
+                    placeholder="09XX-XXX-XXXX"
+                    className="w-full border border-slate-300 rounded-lg px-3 py-1.5 text-xs text-slate-900 focus:ring-1 focus:ring-indigo-500"
+                  />
+                </div>
+                <div>
+                  <label className="block text-[11px] font-medium text-slate-600 mb-1">
+                    Remarks / Notes
+                  </label>
+                  <input
+                    type="text"
+                    value={singleProfile.remarks}
+                    onChange={(e) =>
+                      setSingleProfile((prev) => ({ ...prev, remarks: e.target.value }))
+                    }
+                    placeholder="Any notes..."
+                    className="w-full border border-slate-300 rounded-lg px-3 py-1.5 text-xs text-slate-900 focus:ring-1 focus:ring-indigo-500"
+                  />
+                </div>
+              </div>
             </div>
           </div>
         ) : (
-          /* MULTI-PARTICIPANT ENROLLMENT MODE */
+          /* MULTI-PARTICIPANT ENROLLMENT MODE — FULL TABLE ENTRY */
           <div className="space-y-3 pt-1">
-            <div className="flex items-center justify-between">
+            <div className="flex items-center justify-between flex-wrap gap-2">
               <label className="text-xs font-bold text-slate-800 uppercase tracking-wider flex items-center gap-1.5">
                 <Users className="h-4 w-4 text-indigo-600" />
                 <span>3. Participants to Enroll</span>
@@ -375,97 +524,191 @@ export function ParticipantModal({
               <div className="inline-flex rounded-lg p-0.5 bg-slate-100 border border-slate-200 text-xs">
                 <button
                   type="button"
-                  onClick={() => setEntryMode('rows')}
-                  className={`px-2.5 py-1 rounded-md font-semibold transition-all ${
-                    entryMode === 'rows'
+                  onClick={() => setEntryMode('table')}
+                  className={`px-3 py-1 rounded-md font-semibold transition-all ${
+                    entryMode === 'table'
                       ? 'bg-white text-indigo-700 shadow-2xs'
                       : 'text-slate-600 hover:text-slate-900'
                   }`}
                 >
-                  Row by Row
+                  Table Entry (All Columns)
                 </button>
                 <button
                   type="button"
                   onClick={() => setEntryMode('bulk')}
-                  className={`px-2.5 py-1 rounded-md font-semibold transition-all ${
+                  className={`px-3 py-1 rounded-md font-semibold transition-all ${
                     entryMode === 'bulk'
                       ? 'bg-white text-indigo-700 shadow-2xs'
                       : 'text-slate-600 hover:text-slate-900'
                   }`}
                 >
-                  Paste Multiple Names
+                  Quick Paste (Names Only)
                 </button>
               </div>
             </div>
 
-            {/* TAB 1: ROW-BY-ROW PARTICIPANTS LIST */}
-            {entryMode === 'rows' ? (
-              <div className="space-y-2">
-                <div className="max-h-[280px] overflow-y-auto space-y-2 pr-1">
-                  {rows.map((row, index) => (
-                    <div
-                      key={row.id}
-                      className="flex items-center gap-2 p-2 rounded-lg bg-slate-50 border border-slate-200/90 focus-within:border-indigo-400 focus-within:bg-indigo-50/20 transition-all"
-                    >
-                      <span className="w-6 text-center text-xs font-mono font-bold text-slate-400 select-none">
-                        #{index + 1}
-                      </span>
+            {/* TAB 1: SPREADSHEET TABLE ENTRY */}
+            {entryMode === 'table' ? (
+              <div className="space-y-2.5">
+                <div className="border border-slate-200 rounded-xl overflow-hidden shadow-2xs bg-white">
+                  <div className="overflow-x-auto max-h-[380px]">
+                    <table className="w-full text-left text-xs border-collapse">
+                      <thead className="bg-slate-100/90 sticky top-0 z-10 border-b border-slate-200 text-[10px] font-bold uppercase tracking-wider text-slate-600 select-none">
+                        <tr>
+                          <th className="px-2.5 py-2.5 w-10 text-center border-r border-slate-200">#</th>
+                          <th className="px-3 py-2.5 min-w-[180px] border-r border-slate-200">
+                            Participant Name <span className="text-rose-500">*</span>
+                          </th>
+                          <th className="px-3 py-2.5 min-w-[150px] border-r border-slate-200">
+                            Position / Designation
+                          </th>
+                          <th className="px-2 py-2.5 w-18 text-center border-r border-slate-200">Sex</th>
+                          <th className="px-3 py-2.5 min-w-[160px] border-r border-slate-200">Email</th>
+                          <th className="px-3 py-2.5 min-w-[140px] border-r border-slate-200">Contact No.</th>
+                          <th className="px-3 py-2.5 min-w-[160px] border-r border-slate-200">Remarks</th>
+                          <th className="px-2.5 py-2.5 min-w-[110px] border-r border-slate-200">Status</th>
+                          <th className="px-2 py-2.5 w-10 text-center"></th>
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-slate-200 bg-white">
+                        {rows.map((row, index) => (
+                          <tr key={row.id} className="hover:bg-slate-50/80 transition-colors">
+                            {/* # */}
+                            <td className="px-2 py-1.5 text-center font-mono font-bold text-slate-400 border-r border-slate-200 select-none">
+                              {index + 1}
+                            </td>
 
-                      {/* Participant Full Name */}
-                      <input
-                        ref={(el) => {
-                          nameInputRefs.current[index] = el;
-                        }}
-                        type="text"
-                        value={row.name}
-                        onChange={(e) => handleRowNameChange(row.id, e.target.value)}
-                        onKeyDown={(e) => {
-                          if (e.key === 'Enter') {
-                            e.preventDefault();
-                            if (index === rows.length - 1 && row.name.trim().length >= 2) {
-                              handleAddRow();
-                            }
-                          }
-                        }}
-                        placeholder={`Participant ${index + 1} Full Name (e.g. Juan Dela Cruz)`}
-                        className="flex-1 bg-white border border-slate-300 rounded-md px-3 py-1.5 text-sm text-slate-900 placeholder:text-slate-400 focus:outline-none focus:ring-1 focus:ring-indigo-500 focus:border-indigo-500"
-                      />
+                            {/* Participant Name */}
+                            <td className="p-1 border-r border-slate-200">
+                              <input
+                                ref={(el) => {
+                                  nameInputRefs.current[index] = el;
+                                }}
+                                type="text"
+                                value={row.name}
+                                onChange={(e) => handleRowNameChange(row.id, e.target.value)}
+                                onKeyDown={(e) => {
+                                  if (e.key === 'Enter') {
+                                    e.preventDefault();
+                                    if (index === rows.length - 1 && row.name.trim().length >= 2) {
+                                      handleAddRow();
+                                    }
+                                  }
+                                }}
+                                placeholder="Full Name"
+                                className="w-full px-2 py-1 text-xs border border-slate-300 rounded focus:outline-none focus:ring-1 focus:ring-indigo-500 font-medium"
+                              />
+                            </td>
 
-                      {/* Status Selector for this Participant */}
-                      <select
-                        value={row.status}
-                        onChange={(e) =>
-                          handleRowStatusChange(row.id, e.target.value as ParticipantStatus)
-                        }
-                        className={`text-xs font-semibold px-2 py-1.5 rounded-md border cursor-pointer focus:outline-none focus:ring-1 focus:ring-indigo-500 ${
-                          row.status === 'Confirmed'
-                            ? 'bg-emerald-50 text-emerald-800 border-emerald-300'
-                            : row.status === 'Cancelled'
-                            ? 'bg-rose-50 text-rose-800 border-rose-300'
-                            : 'bg-amber-50 text-amber-800 border-amber-300'
-                        }`}
-                      >
-                        <option value="Pending">Pending</option>
-                        <option value="Confirmed">Confirmed</option>
-                        <option value="Cancelled">Cancelled</option>
-                      </select>
+                            {/* Position */}
+                            <td className="p-1 border-r border-slate-200">
+                              <input
+                                type="text"
+                                value={row.profile.position}
+                                onChange={(e) =>
+                                  handleRowProfileChange(row.id, 'position', e.target.value)
+                                }
+                                placeholder="e.g. Officer"
+                                className="w-full px-2 py-1 text-xs border border-slate-300 rounded focus:outline-none focus:ring-1 focus:ring-indigo-500"
+                              />
+                            </td>
 
-                      {/* Delete Row Button */}
-                      {rows.length > 1 && (
-                        <button
-                          type="button"
-                          onClick={() => handleRemoveRow(row.id)}
-                          className="p-1 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded transition-colors"
-                          title="Remove participant"
-                        >
-                          <Trash2 className="h-4 w-4" />
-                        </button>
-                      )}
-                    </div>
-                  ))}
+                            {/* Sex */}
+                            <td className="p-1 text-center border-r border-slate-200">
+                              <select
+                                value={row.profile.sex}
+                                onChange={(e) =>
+                                  handleRowProfileChange(row.id, 'sex', e.target.value)
+                                }
+                                className="w-full px-1 py-1 text-xs border border-slate-300 rounded bg-white focus:outline-none focus:ring-1 focus:ring-indigo-500"
+                              >
+                                <option value="">—</option>
+                                <option value="M">M</option>
+                                <option value="F">F</option>
+                              </select>
+                            </td>
+
+                            {/* Email */}
+                            <td className="p-1 border-r border-slate-200">
+                              <input
+                                type="email"
+                                value={row.profile.email}
+                                onChange={(e) =>
+                                  handleRowProfileChange(row.id, 'email', e.target.value)
+                                }
+                                placeholder="email@example.com"
+                                className="w-full px-2 py-1 text-xs border border-slate-300 rounded focus:outline-none focus:ring-1 focus:ring-indigo-500"
+                              />
+                            </td>
+
+                            {/* Contact No. */}
+                            <td className="p-1 border-r border-slate-200">
+                              <input
+                                type="text"
+                                value={row.profile.contact_no}
+                                onChange={(e) =>
+                                  handleRowProfileChange(row.id, 'contact_no', e.target.value)
+                                }
+                                placeholder="09XX-XXX-XXXX"
+                                className="w-full px-2 py-1 text-xs border border-slate-300 rounded focus:outline-none focus:ring-1 focus:ring-indigo-500"
+                              />
+                            </td>
+
+                            {/* Remarks */}
+                            <td className="p-1 border-r border-slate-200">
+                              <input
+                                type="text"
+                                value={row.profile.remarks}
+                                onChange={(e) =>
+                                  handleRowProfileChange(row.id, 'remarks', e.target.value)
+                                }
+                                placeholder="Notes..."
+                                className="w-full px-2 py-1 text-xs border border-slate-300 rounded focus:outline-none focus:ring-1 focus:ring-indigo-500"
+                              />
+                            </td>
+
+                            {/* Status */}
+                            <td className="p-1 border-r border-slate-200">
+                              <select
+                                value={row.status}
+                                onChange={(e) =>
+                                  handleRowStatusChange(row.id, e.target.value as ParticipantStatus)
+                                }
+                                className={`w-full px-1.5 py-1 text-xs font-semibold rounded border cursor-pointer ${
+                                  row.status === 'Confirmed'
+                                    ? 'bg-emerald-50 text-emerald-800 border-emerald-300'
+                                    : row.status === 'Cancelled'
+                                    ? 'bg-rose-50 text-rose-800 border-rose-300'
+                                    : 'bg-amber-50 text-amber-800 border-amber-300'
+                                }`}
+                              >
+                                <option value="Pending">Pending</option>
+                                <option value="Confirmed">Confirmed</option>
+                                <option value="Cancelled">Cancelled</option>
+                              </select>
+                            </td>
+
+                            {/* Delete */}
+                            <td className="p-1 text-center">
+                              {rows.length > 1 && (
+                                <button
+                                  type="button"
+                                  onClick={() => handleRemoveRow(row.id)}
+                                  className="p-1 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded transition-colors"
+                                  title="Remove participant"
+                                >
+                                  <Trash2 className="h-3.5 w-3.5" />
+                                </button>
+                              )}
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
                 </div>
 
-                <div className="flex items-center justify-between pt-1">
+                <div className="flex items-center justify-between pt-1 flex-wrap gap-2">
                   <Button
                     type="button"
                     variant="outline"
@@ -474,10 +717,10 @@ export function ParticipantModal({
                     className="text-xs text-indigo-700 border-indigo-200 hover:bg-indigo-50 hover:border-indigo-300"
                   >
                     <Plus className="h-3.5 w-3.5 mr-1" />
-                    <span>Add Another Participant</span>
+                    <span>Add Another Participant Row</span>
                   </Button>
-                  <span className="text-[11px] text-slate-400 italic">
-                    Press <kbd className="px-1 py-0.5 bg-slate-100 border border-slate-300 rounded text-[10px]">Enter</kbd> to quickly add next row
+                  <span className="text-[11px] text-slate-500 italic">
+                    ℹ️ Enrolling adds participants to the registry. Attendance is recorded separately via <strong>Mark Present</strong> on the Participants page.
                   </span>
                 </div>
               </div>
@@ -520,6 +763,10 @@ export function ParticipantModal({
                     </span>
                   )}
                 </div>
+
+                <p className="text-[10px] text-slate-400 italic">
+                  Tip: Switch to <strong>Table Entry (All Columns)</strong> to input position, sex, email, contact number, and remarks per participant.
+                </p>
               </div>
             )}
           </div>
@@ -531,7 +778,7 @@ export function ParticipantModal({
           <div className="text-xs text-slate-500">
             {!participant && validParticipantCount > 0 && (
               <span>
-                Adding <strong className="text-indigo-700 font-bold">{validParticipantCount}</strong> participant{validParticipantCount > 1 ? 's' : ''} to selected CBO
+                Enrolling <strong className="text-indigo-700 font-bold">{validParticipantCount}</strong> participant{validParticipantCount > 1 ? 's' : ''} under selected CBO
               </span>
             )}
           </div>

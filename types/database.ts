@@ -22,6 +22,11 @@ export type Participant = {
   name: string;
   status: ParticipantStatus;
   date_confirmed: string | null;
+  position?: string | null;
+  sex?: 'M' | 'F' | null;
+  email?: string | null;
+  contact_no?: string | null;
+  remarks?: string | null;
   created_at: string;
   updated_at: string;
 };
@@ -160,6 +165,11 @@ export type Database = {
           name: string;
           status?: ParticipantStatus;
           date_confirmed?: string | null;
+          position?: string | null;
+          sex?: 'M' | 'F' | null;
+          email?: string | null;
+          contact_no?: string | null;
+          remarks?: string | null;
           created_at?: string;
           updated_at?: string;
         };
@@ -170,6 +180,11 @@ export type Database = {
           name?: string;
           status?: ParticipantStatus;
           date_confirmed?: string | null;
+          position?: string | null;
+          sex?: 'M' | 'F' | null;
+          email?: string | null;
+          contact_no?: string | null;
+          remarks?: string | null;
           created_at?: string;
           updated_at?: string;
         };

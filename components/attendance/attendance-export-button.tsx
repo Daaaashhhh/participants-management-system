@@ -27,13 +27,13 @@ export function AttendanceExportButton({ records, eventDate }: AttendanceExportB
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, []);
 
-  const handleExportExcel = () => {
+  const handleExportExcel = async () => {
     try {
       if (records.length === 0) {
         error('No attendance records to export for this date.');
         return;
       }
-      exportAttendanceToExcel(records, eventDate);
+      await exportAttendanceToExcel(records, eventDate);
       success(`Exported ${records.length} attendee records to Excel (.xlsx).`);
       setIsOpen(false);
     } catch (err) {

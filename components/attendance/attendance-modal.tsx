@@ -6,7 +6,6 @@ import { Button } from '@/components/ui/button';
 import { useToast } from '@/components/ui/toast';
 import { createAttendanceRecord, updateAttendanceRecord } from '@/app/actions/attendance';
 import { AttendanceRecord } from '@/types/database';
-import { Clock } from 'lucide-react';
 
 interface AttendanceModalProps {
   isOpen: boolean;
@@ -28,10 +27,6 @@ export function AttendanceModal({
   const [email, setEmail] = React.useState('');
   const [contactNo, setContactNo] = React.useState('');
   const [remarks, setRemarks] = React.useState('');
-  const [amIn, setAmIn] = React.useState('');
-  const [amOut, setAmOut] = React.useState('');
-  const [pmIn, setPmIn] = React.useState('');
-  const [pmOut, setPmOut] = React.useState('');
   const [error, setError] = React.useState('');
   const [isLoading, setIsLoading] = React.useState(false);
   const { success, error: toastError } = useToast();
@@ -45,10 +40,6 @@ export function AttendanceModal({
       setEmail(record.email || '');
       setContactNo(record.contact_no || '');
       setRemarks(record.remarks || '');
-      setAmIn(record.am_in || '');
-      setAmOut(record.am_out || '');
-      setPmIn(record.pm_in || '');
-      setPmOut(record.pm_out || '');
     } else {
       setName('');
       setOfficeAgency('');
@@ -57,21 +48,9 @@ export function AttendanceModal({
       setEmail('');
       setContactNo('');
       setRemarks('');
-      setAmIn('');
-      setAmOut('');
-      setPmIn('');
-      setPmOut('');
     }
     setError('');
   }, [record, isOpen]);
-
-  const getCurrentTimeStr = () => {
-    return new Date().toLocaleTimeString('en-US', {
-      hour: '2-digit',
-      minute: '2-digit',
-      hour12: true,
-    });
-  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -95,10 +74,6 @@ export function AttendanceModal({
     formData.append('email', email.trim());
     formData.append('contact_no', contactNo.trim());
     formData.append('remarks', remarks.trim());
-    formData.append('am_in', amIn.trim());
-    formData.append('am_out', amOut.trim());
-    formData.append('pm_in', pmIn.trim());
-    formData.append('pm_out', pmOut.trim());
     formData.append('event_date', eventDate);
 
     try {
@@ -231,99 +206,7 @@ export function AttendanceModal({
           </div>
         </div>
 
-        {/* Time Tracking (AM IN, AM OUT, PM IN, PM OUT) */}
-        <div className="p-3.5 bg-slate-50 rounded-xl border border-slate-200 space-y-3">
-          <div className="flex items-center gap-1.5 text-xs font-bold text-slate-800 uppercase tracking-wider">
-            <Clock className="h-3.5 w-3.5 text-emerald-600" />
-            <span>Attendance Timestamps</span>
-          </div>
 
-          <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5">
-            {/* AM IN */}
-            <div>
-              <div className="flex items-center justify-between mb-1">
-                <span className="text-[11px] font-semibold text-slate-600">AM IN</span>
-                <button
-                  type="button"
-                  onClick={() => setAmIn(getCurrentTimeStr())}
-                  className="text-[10px] text-emerald-600 hover:text-emerald-700 font-bold"
-                >
-                  Now
-                </button>
-              </div>
-              <input
-                type="text"
-                placeholder="--:-- --"
-                value={amIn}
-                onChange={(e) => setAmIn(e.target.value)}
-                className="w-full px-2.5 py-1.5 text-xs bg-white border border-slate-200 rounded-md focus:ring-1 focus:ring-emerald-500"
-              />
-            </div>
-
-            {/* AM OUT */}
-            <div>
-              <div className="flex items-center justify-between mb-1">
-                <span className="text-[11px] font-semibold text-slate-600">AM OUT</span>
-                <button
-                  type="button"
-                  onClick={() => setAmOut(getCurrentTimeStr())}
-                  className="text-[10px] text-emerald-600 hover:text-emerald-700 font-bold"
-                >
-                  Now
-                </button>
-              </div>
-              <input
-                type="text"
-                placeholder="--:-- --"
-                value={amOut}
-                onChange={(e) => setAmOut(e.target.value)}
-                className="w-full px-2.5 py-1.5 text-xs bg-white border border-slate-200 rounded-md focus:ring-1 focus:ring-emerald-500"
-              />
-            </div>
-
-            {/* PM IN */}
-            <div>
-              <div className="flex items-center justify-between mb-1">
-                <span className="text-[11px] font-semibold text-slate-600">PM IN</span>
-                <button
-                  type="button"
-                  onClick={() => setPmIn(getCurrentTimeStr())}
-                  className="text-[10px] text-emerald-600 hover:text-emerald-700 font-bold"
-                >
-                  Now
-                </button>
-              </div>
-              <input
-                type="text"
-                placeholder="--:-- --"
-                value={pmIn}
-                onChange={(e) => setPmIn(e.target.value)}
-                className="w-full px-2.5 py-1.5 text-xs bg-white border border-slate-200 rounded-md focus:ring-1 focus:ring-emerald-500"
-              />
-            </div>
-
-            {/* PM OUT */}
-            <div>
-              <div className="flex items-center justify-between mb-1">
-                <span className="text-[11px] font-semibold text-slate-600">PM OUT</span>
-                <button
-                  type="button"
-                  onClick={() => setPmOut(getCurrentTimeStr())}
-                  className="text-[10px] text-emerald-600 hover:text-emerald-700 font-bold"
-                >
-                  Now
-                </button>
-              </div>
-              <input
-                type="text"
-                placeholder="--:-- --"
-                value={pmOut}
-                onChange={(e) => setPmOut(e.target.value)}
-                className="w-full px-2.5 py-1.5 text-xs bg-white border border-slate-200 rounded-md focus:ring-1 focus:ring-emerald-500"
-              />
-            </div>
-          </div>
-        </div>
 
         {/* Remarks */}
         <div>

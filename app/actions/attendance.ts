@@ -85,10 +85,9 @@ export async function markParticipantPresent(
   eventDate?: string
 ): Promise<{ success: boolean; error?: string; record?: AttendanceRecord }> {
   const targetDate = eventDate || getTodayDateStr();
-  const currentTime = getCurrentTimeStr();
 
   if (!isSupabaseConfigured()) {
-    const res = mockStore.markParticipantPresent(participantId, targetDate, currentTime);
+    const res = mockStore.markParticipantPresent(participantId, targetDate);
     if (!res.success) {
       return { success: false, error: res.message || 'Failed to mark participant present.' };
     }
@@ -104,8 +103,7 @@ export async function markParticipantPresent(
   const { data: participant, error: partError } = await supabase
     .from('participants')
     .select(`
-      id,
-      name,
+      *,
       partner_agency:partner_agencies(name),
       cbo:cbos!participants_cbo_id_fkey(name)
     `)
@@ -119,6 +117,11 @@ export async function markParticipantPresent(
   const p = participant as unknown as {
     id: string;
     name: string;
+    position?: string | null;
+    sex?: 'M' | 'F' | null;
+    email?: string | null;
+    contact_no?: string | null;
+    remarks?: string | null;
     partner_agency?: { name: string } | null;
     cbo?: { name: string } | null;
   };
@@ -139,7 +142,7 @@ export async function markParticipantPresent(
     return { success: true, record: existing as AttendanceRecord };
   }
 
-  // 3. Insert attendance record with AM IN stamped
+  // 3. Insert attendance record with participant details (time logs left blank for handwriting)
   const { data: inserted, error: insertError } = await supabase
     .from('attendance_records')
     .insert([
@@ -148,7 +151,12 @@ export async function markParticipantPresent(
         participant_id: p.id,
         name: p.name,
         office_agency: officeAgency,
-        am_in: currentTime,
+        position: p.position || null,
+        sex: p.sex || null,
+        email: p.email || null,
+        contact_no: p.contact_no || null,
+        remarks: p.remarks || null,
+        am_in: null,
       },
     ])
     .select()

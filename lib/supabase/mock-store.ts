@@ -210,7 +210,14 @@ export const mockStore = {
     partner_agency_id: string,
     cbo_id: string,
     name: string,
-    status: ParticipantStatus
+    status: ParticipantStatus,
+    profile?: {
+      position?: string | null;
+      sex?: 'M' | 'F' | null;
+      email?: string | null;
+      contact_no?: string | null;
+      remarks?: string | null;
+    }
   ): Participant => {
     const now = new Date().toISOString();
     const newParticipant: Participant = {
@@ -220,6 +227,11 @@ export const mockStore = {
       name: name.trim(),
       status,
       date_confirmed: status === 'Confirmed' ? now : null,
+      position: profile?.position ?? null,
+      sex: profile?.sex ?? null,
+      email: profile?.email ?? null,
+      contact_no: profile?.contact_no ?? null,
+      remarks: profile?.remarks ?? null,
       created_at: now,
       updated_at: now,
     };
@@ -229,7 +241,15 @@ export const mockStore = {
   addParticipantsBatch: (
     partner_agency_id: string,
     cbo_id: string,
-    items: { name: string; status: ParticipantStatus }[]
+    items: {
+      name: string;
+      status: ParticipantStatus;
+      position?: string | null;
+      sex?: 'M' | 'F' | null;
+      email?: string | null;
+      contact_no?: string | null;
+      remarks?: string | null;
+    }[]
   ): Participant[] => {
     const now = new Date().toISOString();
     const newParticipants: Participant[] = items.map((item) => ({
@@ -239,6 +259,11 @@ export const mockStore = {
       name: item.name.trim(),
       status: item.status,
       date_confirmed: item.status === 'Confirmed' ? now : null,
+      position: item.position ?? null,
+      sex: item.sex ?? null,
+      email: item.email ?? null,
+      contact_no: item.contact_no ?? null,
+      remarks: item.remarks ?? null,
       created_at: now,
       updated_at: now,
     }));
@@ -250,7 +275,14 @@ export const mockStore = {
     partner_agency_id: string,
     cbo_id: string,
     name: string,
-    status: ParticipantStatus
+    status: ParticipantStatus,
+    profile?: {
+      position?: string | null;
+      sex?: 'M' | 'F' | null;
+      email?: string | null;
+      contact_no?: string | null;
+      remarks?: string | null;
+    }
   ): Participant | null => {
     const idx = mockDb.participants.findIndex((p) => p.id === id);
     if (idx === -1) return null;
@@ -271,6 +303,11 @@ export const mockStore = {
       name: name.trim(),
       status,
       date_confirmed: dateConfirmed,
+      position: profile !== undefined ? (profile.position ?? null) : prev.position,
+      sex: profile !== undefined ? (profile.sex ?? null) : prev.sex,
+      email: profile !== undefined ? (profile.email ?? null) : prev.email,
+      contact_no: profile !== undefined ? (profile.contact_no ?? null) : prev.contact_no,
+      remarks: profile !== undefined ? (profile.remarks ?? null) : prev.remarks,
       updated_at: now,
     };
     return mockDb.participants[idx];
@@ -368,7 +405,7 @@ export const mockStore = {
   markParticipantPresent: (
     participantId: string,
     eventDate: string,
-    timeStr: string
+    timeStr?: string
   ): { success: boolean; record?: AttendanceRecord; message?: string } => {
     // Check if participant exists
     const participant = mockDb.participants.find((p) => p.id === participantId);
@@ -396,12 +433,12 @@ export const mockStore = {
       participant_id: participant.id,
       name: participant.name,
       office_agency: officeAgency,
-      position: null,
-      sex: null,
-      email: null,
-      contact_no: null,
-      remarks: null,
-      am_in: timeStr,
+      position: participant.position || null,
+      sex: participant.sex || null,
+      email: participant.email || null,
+      contact_no: participant.contact_no || null,
+      remarks: participant.remarks || null,
+      am_in: timeStr || null,
       am_out: null,
       pm_in: null,
       pm_out: null,

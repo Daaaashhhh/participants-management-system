@@ -13,6 +13,20 @@ export interface ParticipantFilters {
   search?: string;
 }
 
+function isSchemaCacheOrColumnError(
+  err: { code?: string; message?: string } | null | undefined
+): boolean {
+  if (!err) return false;
+  const msg = (err.message || '').toLowerCase();
+  return (
+    err.code === 'PGRST204' ||
+    err.code === '42703' ||
+    msg.includes('schema cache') ||
+    msg.includes('could not find the') ||
+    msg.includes('column')
+  );
+}
+
 export async function getParticipants(filters?: ParticipantFilters): Promise<ParticipantWithRelations[]> {
   if (!isSupabaseConfigured()) {
     let participants = mockStore.getParticipants();
@@ -108,6 +122,12 @@ export async function createParticipant(formData: FormData) {
   const { partner_agency_id, cbo_id, name, status } = validation.data;
 
   // Validate relational constraint: CBO must belong to selected Partner Agency
+  const position = formData.get('position')?.toString().trim() || null;
+  const sex = (formData.get('sex')?.toString().trim() || null) as 'M' | 'F' | null;
+  const email = formData.get('email')?.toString().trim() || null;
+  const contact_no = formData.get('contact_no')?.toString().trim() || null;
+  const remarks = formData.get('remarks')?.toString().trim() || null;
+
   if (!isSupabaseConfigured()) {
     const cbos = mockStore.getCbos();
     const cbo = cbos.find((c) => c.id === cbo_id);
@@ -125,7 +145,8 @@ export async function createParticipant(formData: FormData) {
       partner_agency_id,
       cbo_id,
       name,
-      status as ParticipantStatus
+      status as ParticipantStatus,
+      { position, sex, email, contact_no, remarks }
     );
     revalidatePath('/participants');
     revalidatePath('/organized-list');
@@ -156,19 +177,43 @@ export async function createParticipant(formData: FormData) {
   const now = new Date().toISOString();
   const date_confirmed = status === 'Confirmed' ? now : null;
 
-  const { data, error } = await supabase
+  const recordPayload = {
+    partner_agency_id,
+    cbo_id,
+    name,
+    status: status as ParticipantStatus,
+    date_confirmed,
+    position,
+    sex,
+    email,
+    contact_no,
+    remarks,
+  };
+
+  let { data, error } = await supabase
     .from('participants')
-    .insert([
-      {
-        partner_agency_id,
-        cbo_id,
-        name,
-        status: status as ParticipantStatus,
-        date_confirmed,
-      },
-    ])
+    .insert([recordPayload])
     .select()
     .single();
+
+  // If column doesn't exist yet in Supabase (migration not yet applied), fallback to base columns
+  if (isSchemaCacheOrColumnError(error)) {
+    const fallback = await supabase
+      .from('participants')
+      .insert([
+        {
+          partner_agency_id,
+          cbo_id,
+          name,
+          status: status as ParticipantStatus,
+          date_confirmed,
+        },
+      ])
+      .select()
+      .single();
+    data = fallback.data;
+    error = fallback.error;
+  }
 
   if (error) {
     return { success: false, error: error.message };
@@ -181,12 +226,26 @@ export async function createParticipant(formData: FormData) {
 }
 
 /**
- * Bulk / Batch enroll multiple participants under a specific CBO in a single transaction
+ * Bulk / Batch enroll multiple participants under a specific CBO in a single transaction.
+ * If a participant has attendance fields filled in, an attendance_records row is also created
+ * for today's date.
  */
 export async function createBatchParticipants(payload: {
   partner_agency_id: string;
   cbo_id: string;
-  participants: { name: string; status?: ParticipantStatus }[];
+  participants: {
+    name: string;
+    status?: ParticipantStatus;
+    position?: string;
+    sex?: 'M' | 'F' | null;
+    email?: string;
+    contact_no?: string;
+    remarks?: string;
+    am_in?: string;
+    am_out?: string;
+    pm_in?: string;
+    pm_out?: string;
+  }[];
 }) {
   const validation = batchParticipantSchema.safeParse(payload);
   if (!validation.success) {
@@ -224,7 +283,15 @@ export async function createBatchParticipants(payload: {
     const created = mockStore.addParticipantsBatch(
       partner_agency_id,
       cbo_id,
-      validParticipants as { name: string; status: ParticipantStatus }[]
+      validParticipants.map((p) => ({
+        name: p.name.trim(),
+        status: (p.status || 'Pending') as ParticipantStatus,
+        position: p.position?.trim() || null,
+        sex: (p.sex as 'M' | 'F' | null) || null,
+        email: p.email?.trim() || null,
+        contact_no: p.contact_no?.trim() || null,
+        remarks: p.remarks?.trim() || null,
+      }))
     );
 
     revalidatePath('/participants');
@@ -261,12 +328,36 @@ export async function createBatchParticipants(payload: {
     name: p.name.trim(),
     status: (p.status || 'Pending') as ParticipantStatus,
     date_confirmed: p.status === 'Confirmed' ? now : null,
+    position: p.position?.trim() || null,
+    sex: (p.sex as 'M' | 'F' | null) || null,
+    email: p.email?.trim() || null,
+    contact_no: p.contact_no?.trim() || null,
+    remarks: p.remarks?.trim() || null,
   }));
 
-  const { data, error } = await supabase
+  let { data, error } = await supabase
     .from('participants')
     .insert(recordsToInsert)
     .select();
+
+  // If columns don't exist yet in Supabase (migration not yet applied), fallback to base columns
+  if (isSchemaCacheOrColumnError(error)) {
+    const baseRecords = recordsToInsert.map(
+      ({ partner_agency_id, cbo_id, name, status, date_confirmed }) => ({
+        partner_agency_id,
+        cbo_id,
+        name,
+        status,
+        date_confirmed,
+      })
+    );
+    const fallback = await supabase
+      .from('participants')
+      .insert(baseRecords)
+      .select();
+    data = fallback.data;
+    error = fallback.error;
+  }
 
   if (error) {
     return { success: false, error: error.message };
@@ -296,6 +387,11 @@ export async function updateParticipant(id: string, formData: FormData) {
   }
 
   const { partner_agency_id, cbo_id, name, status } = validation.data;
+  const position = formData.get('position')?.toString().trim() || null;
+  const sex = (formData.get('sex')?.toString().trim() || null) as 'M' | 'F' | null;
+  const email = formData.get('email')?.toString().trim() || null;
+  const contact_no = formData.get('contact_no')?.toString().trim() || null;
+  const remarks = formData.get('remarks')?.toString().trim() || null;
 
   if (!isSupabaseConfigured()) {
     const cbos = mockStore.getCbos();
@@ -315,7 +411,8 @@ export async function updateParticipant(id: string, formData: FormData) {
       partner_agency_id,
       cbo_id,
       name,
-      status as ParticipantStatus
+      status as ParticipantStatus,
+      { position, sex, email, contact_no, remarks }
     );
     if (!updated) {
       return { success: false, error: 'Participant not found.' };
@@ -358,7 +455,7 @@ export async function updateParticipant(id: string, formData: FormData) {
     date_confirmed = null;
   }
 
-  const { data, error } = await supabase
+  let { data, error } = await supabase
     .from('participants')
     .update({
       partner_agency_id,
@@ -366,10 +463,33 @@ export async function updateParticipant(id: string, formData: FormData) {
       name,
       status: status as ParticipantStatus,
       date_confirmed,
+      position,
+      sex,
+      email,
+      contact_no,
+      remarks,
     })
     .eq('id', id)
     .select()
     .single();
+
+  // Fallback if migration not yet applied in Supabase
+  if (isSchemaCacheOrColumnError(error)) {
+    const fallback = await supabase
+      .from('participants')
+      .update({
+        partner_agency_id,
+        cbo_id,
+        name,
+        status: status as ParticipantStatus,
+        date_confirmed,
+      })
+      .eq('id', id)
+      .select()
+      .single();
+    data = fallback.data;
+    error = fallback.error;
+  }
 
   if (error) {
     return { success: false, error: error.message };
